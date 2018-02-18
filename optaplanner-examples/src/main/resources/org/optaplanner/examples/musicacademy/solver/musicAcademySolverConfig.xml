@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<solver>
+  <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+  <solutionClass>org.optaplanner.examples.musicacademy.domain.SessionSchedule</solutionClass>
+  <entityClass>org.optaplanner.examples.musicacademy.domain.Meeting</entityClass>
+
+  <scoreDirectorFactory>
+    <scoreDrl>org/optaplanner/examples/musicacademy/solver/musicAcademyScoreRules.drl</scoreDrl>
+  </scoreDirectorFactory>
+
+  <termination>
+    <secondsSpentLimit>300</secondsSpentLimit>
+  </termination>
+  <constructionHeuristic>
+    <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+  </constructionHeuristic>
+  <localSearch>
+    <unionMoveSelector>
+      <changeMoveSelector/>
+      <swapMoveSelector>
+        <filterClass>org.optaplanner.examples.musicacademy.solver.move.DifferentSessionSwapMoveFilter</filterClass>
+      </swapMoveSelector>
+    </unionMoveSelector>
+    <acceptor>
+      <lateAcceptanceSize>600</lateAcceptanceSize>
+    </acceptor>
+    <forager>
+      <acceptedCountLimit>4</acceptedCountLimit>
+    </forager>
+  </localSearch>
+</solver>

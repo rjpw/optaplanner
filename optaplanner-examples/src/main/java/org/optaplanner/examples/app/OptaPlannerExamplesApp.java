@@ -53,6 +53,7 @@ import org.optaplanner.examples.examination.app.ExaminationApp;
 import org.optaplanner.examples.investment.app.InvestmentApp;
 import org.optaplanner.examples.machinereassignment.app.MachineReassignmentApp;
 import org.optaplanner.examples.meetingscheduling.app.MeetingSchedulingApp;
+import org.optaplanner.examples.musicacademy.app.MusicAcademyApp;
 import org.optaplanner.examples.nqueens.app.NQueensApp;
 import org.optaplanner.examples.nurserostering.app.NurseRosteringApp;
 import org.optaplanner.examples.pas.app.PatientAdmissionScheduleApp;
@@ -155,8 +156,8 @@ public class OptaPlannerExamplesApp extends JFrame {
         titledBorder.setTitleColor(TangoColorFactory.BUTTER_3);
         panel.setBorder(BorderFactory.createCompoundBorder(titledBorder,
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)));
+        panel.add(createExampleButton(new MusicAcademyApp()));
         panel.add(createExampleButton(new CurriculumCourseApp()));
-        panel.add(createExampleButton(new MachineReassignmentApp()));
         panel.add(createExampleButton(new VehicleRoutingApp()));
         panel.add(createExampleButton(new ProjectJobSchedulingApp()));
         panel.add(createExampleButton(new PatientAdmissionScheduleApp()));

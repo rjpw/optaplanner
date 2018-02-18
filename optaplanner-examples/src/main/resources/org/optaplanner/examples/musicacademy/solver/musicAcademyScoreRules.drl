@@ -1,0 +1,150 @@
+/*
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.optaplanner.examples.musicacademy.solver;
+    dialect "java"
+
+import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScoreHolder;
+
+import org.optaplanner.examples.musicacademy.domain.Session;
+import org.optaplanner.examples.musicacademy.domain.Curriculum;
+import org.optaplanner.examples.musicacademy.domain.SessionSchedule;
+import org.optaplanner.examples.musicacademy.domain.Day;
+import org.optaplanner.examples.musicacademy.domain.Meeting;
+import org.optaplanner.examples.musicacademy.domain.Period;
+import org.optaplanner.examples.musicacademy.domain.Room;
+import org.optaplanner.examples.musicacademy.domain.Instructor;
+import org.optaplanner.examples.musicacademy.domain.Timeslot;
+import org.optaplanner.examples.musicacademy.domain.UnavailablePeriodPenalty;
+import org.optaplanner.examples.musicacademy.domain.solver.SessionConflict;
+
+global HardSoftScoreHolder scoreHolder;
+
+// ############################################################################
+// Hard constraints
+// ############################################################################
+
+// Meetings: A missing or extra lecture of a session.
+// This hard constraint is built-in: the correct number of Meeting's is created
+
+// Conflicts: Two conflicting lectures in the same period.
+// Three conflicting lectures count as 3 violations: one for each pair.
+rule "conflictingMeetingsDifferentSessionInSamePeriod"
+    when
+        $courseConflict : SessionConflict($leftSession : leftSession, $rightSession : rightSession)
+        $leftMeeting : Meeting(session == $leftSession, $period : period, period != null)
+        $rightMeeting : Meeting(session == $rightSession, period == $period, this != $leftMeeting)
+    then
+        scoreHolder.addHardConstraintMatch(kcontext, - $courseConflict.getConflictCount());
+end
+rule "conflictingMeetingsSameSessionInSamePeriod"
+    when
+        Meeting($leftId : id, $leftSession : session, $period : period, period != null)
+        Meeting(session == $leftSession, period == $period, id > $leftId)
+    then
+        scoreHolder.addHardConstraintMatch(kcontext, - (1 + $leftSession.getCurriculumList().size()));
+end
+
+// RoomOccupancy: Two lectures in the same room at the same period.
+// Any extra lecture in the same period and room counts as one more violation.
+rule "roomOccupancy"
+    when
+        Meeting($leftId : id, period != null, $period : period, room != null, $room : room)
+        // $leftMeeting has lowest id of the period+room combo
+        not Meeting(period == $period, room == $room, id < $leftId)
+        // rightMeeting has the same period
+        Meeting(period == $period, room == $room, id > $leftId, $rightId : id)
+    then
+        scoreHolder.addHardConstraintMatch(kcontext, -1);
+end
+
+// Availabilities: Each lecture in a period unavailable for that session.
+rule "unavailablePeriodPenalty"
+    when
+        UnavailablePeriodPenalty($session : session, $period : period)
+        Meeting(session == $session, period == $period)
+    then
+        scoreHolder.addHardConstraintMatch(kcontext, -10);
+end
+
+// ############################################################################
+// Soft constraints
+// ############################################################################
+
+// RoomCapacity: For each lecture, the number of students that attend the session should be less or equal
+// than the number of seats of all the rooms that host its lectures.
+// Each student above the capacity counts as 1 point of penalty.
+rule "roomCapacity"
+    when
+        $room : Room($capacity : capacity)
+        Meeting(room == $room, studentSize > $capacity, $studentSize : studentSize)
+    then
+        scoreHolder.addSoftConstraintMatch(kcontext, ($capacity - $studentSize));
+end
+
+// MinimumWorkingDays: The lectures of each session should be spread into a minimum number of days.
+// Each day below the minimum counts as 5 points of penalty.
+rule "minimumWorkingDays"
+    when
+        $session : Session($minWorkingDaySize : minWorkingDaySize)
+        accumulate(
+            $day : Day()
+            and exists Meeting(session == $session, day == $day);
+            $dayCount : count($day);
+            $dayCount < $minWorkingDaySize
+        )
+        // An uninitialized schedule should have no constraints broken
+        exists Meeting(session == $session, period != null)
+    then
+        scoreHolder.addSoftConstraintMatch(kcontext, (($dayCount.intValue() - $minWorkingDaySize) * 5));
+end
+
+// CurriculumCompactness: Meetings belonging to a curriculum should be adjacent
+// to each other (i.e., in consecutive periods).
+// For a given curriculum we account for a violation every time there is one lecture not adjacent
+// to any other lecture within the same day.
+// Each isolated lecture in a curriculum counts as 2 points of penalty.
+rule "curriculumCompactness"
+    when
+        $curriculum : Curriculum()
+
+        Meeting(curriculumList contains $curriculum,
+            $day : day, $timeslotIndex : timeslotIndex, period != null
+        )
+        not Meeting(curriculumList contains $curriculum,
+            day == $day, timeslotIndex == ($timeslotIndex - 1)
+        )
+        not Meeting(curriculumList contains $curriculum,
+            day == $day, timeslotIndex == ($timeslotIndex + 1)
+        )
+    then
+        scoreHolder.addSoftConstraintMatch(kcontext, -2);
+end
+
+// RoomStability: All lectures of a session should be given in the same room.
+// Each distinct room used for the lectures of a session, but the first, counts as 1 point of penalty.
+rule "roomStability"
+    when
+        $session : Session()
+        accumulate(
+            $room : Room()
+            and exists Meeting(session == $session, room == $room);
+            $roomCount : count($room);
+            $roomCount > 1
+        )
+    then
+        scoreHolder.addSoftConstraintMatch(kcontext, -($roomCount.intValue() - 1));
+end
