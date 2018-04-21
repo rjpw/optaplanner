@@ -66,8 +66,8 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
             schedule.setId(0L);
             // Name: ToyExample
             schedule.setName(readStringValue("Name:"));
-            // Courses: 4
-            int courseListSize = readIntegerValue("Courses:");
+            // Sessions: 4
+            int sessionListSize = readIntegerValue("Sessions:");
             // Rooms: 2
             int roomListSize = readIntegerValue("Rooms:");
             // Days: 5
@@ -79,16 +79,21 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
             // Constraints: 8
             int unavailablePeriodPenaltyListSize = readIntegerValue("Constraints:");
 
-            Map<String, Session> courseMap = readCourseListAndInstructorList(
-                    schedule, courseListSize);
+            Map<String, Session> sessionMap = readSessionListAndInstructorList(
+                    schedule, sessionListSize);
+            
             readRoomList(
                     schedule, roomListSize);
+            
             Map<List<Integer>, Period> periodMap = createPeriodListAndDayListAndTimeslotList(
                     schedule, dayListSize, timeslotListSize);
+
             readCurriculumList(
-                    schedule, courseMap, curriculumListSize);
+                    schedule, sessionMap, curriculumListSize);
+
             readUnavailablePeriodPenaltyList(
-                    schedule, courseMap, periodMap, unavailablePeriodPenaltyListSize);
+                    schedule, sessionMap, periodMap, unavailablePeriodPenaltyListSize);
+
             readEmptyLine();
             readConstantLine("END\\.");
             createMeetingList(schedule);
@@ -96,7 +101,8 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
             int possibleForOneMeetingSize = schedule.getPeriodList().size() * schedule.getRoomList().size();
             BigInteger possibleSolutionSize = BigInteger.valueOf(possibleForOneMeetingSize).pow(
                     schedule.getMeetingList().size());
-            logger.info("SessionSchedule {} has {} instructors, {} curricula, {} courses, {} meetings," +
+
+            logger.info("SessionSchedule {} has {} instructors, {} curricula, {} sessions, {} meetings," +
                     " {} periods, {} rooms and {} unavailable period constraints with a search space of {}.",
                     getInputId(),
                     schedule.getInstructorList().size(),
@@ -107,20 +113,25 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
                     schedule.getRoomList().size(),
                     schedule.getUnavailablePeriodPenaltyList().size(),
                     getFlooredPossibleSolutionSize(possibleSolutionSize));
+
             return schedule;
+
         }
 
-        private Map<String, Session> readCourseListAndInstructorList(
-                SessionSchedule schedule, int courseListSize) throws IOException {
-            Map<String, Session> courseMap = new HashMap<>(courseListSize);
+        private Map<String, Session> readSessionListAndInstructorList(
+                SessionSchedule schedule, int sessionListSize) throws IOException {
+
+            Map<String, Session> sessionMap = new HashMap<>(sessionListSize);
             Map<String, Instructor> instructorMap = new HashMap<>();
-            List<Session> courseList = new ArrayList<>(courseListSize);
+            List<Session> sessionList = new ArrayList<>(sessionListSize);
             readEmptyLine();
-            readConstantLine("COURSES:");
-            for (int i = 0; i < courseListSize; i++) {
+
+            readConstantLine("SESSIONS:");
+
+            for (int i = 0; i < sessionListSize; i++) {
                 Session session = new Session();
                 session.setId((long) i);
-                // Courses: <CourseID> <Instructor> <# Meetings> <MinWorkingDays> <# Students>
+                // Sessions: <SessionID> <Instructor> <# Meetings> <MinWorkingDays> <# Students>
                 String line = bufferedReader.readLine();
                 String[] lineTokens = splitBySpacesOrTabs(line, 5);
                 session.setCode(lineTokens[0]);
@@ -129,13 +140,14 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
                 session.setMinWorkingDaySize(Integer.parseInt(lineTokens[3]));
                 session.setCurriculumList(new ArrayList<>());
                 session.setStudentSize(Integer.parseInt(lineTokens[4]));
-                courseList.add(session);
-                courseMap.put(session.getCode(), session);
+                sessionList.add(session);
+                sessionMap.put(session.getCode(), session);
             }
-            schedule.setSessionList(courseList);
+
+            schedule.setSessionList(sessionList);
             List<Instructor> instructorList = new ArrayList<>(instructorMap.values());
             schedule.setInstructorList(instructorList);
-            return courseMap;
+            return sessionMap;
         }
 
         private Instructor findOrCreateInstructor(Map<String, Instructor> instructorMap, String code) {
@@ -207,14 +219,16 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
         }
 
         private void readCurriculumList(SessionSchedule schedule,
-                Map<String, Session> courseMap, int curriculumListSize) throws IOException {
+                Map<String, Session> sessionMap, int curriculumListSize) throws IOException {
+
             readEmptyLine();
             readConstantLine("CURRICULA:");
             List<Curriculum> curriculumList = new ArrayList<>(curriculumListSize);
+
             for (int i = 0; i < curriculumListSize; i++) {
                 Curriculum curriculum = new Curriculum();
                 curriculum.setId((long) i);
-                // Curricula: <CurriculumID> <# Courses> <MemberID> ... <MemberID>
+                // Curricula: <CurriculumID> <# Sessions> <MemberID> ... <MemberID>
                 String line = bufferedReader.readLine();
                 String[] lineTokens = splitBySpacesOrTabs(line);
                 if (lineTokens.length < 2) {
@@ -222,13 +236,13 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
                             + ") is expected to contain at least 2 tokens.");
                 }
                 curriculum.setCode(lineTokens[0]);
-                int coursesInCurriculum = Integer.parseInt(lineTokens[1]);
-                if (lineTokens.length != (coursesInCurriculum + 2)) {
+                int sessionsInCurriculum = Integer.parseInt(lineTokens[1]);
+                if (lineTokens.length != (sessionsInCurriculum + 2)) {
                     throw new IllegalArgumentException("Read line (" + line + ") is expected to contain "
-                            + (coursesInCurriculum + 2) + " tokens.");
+                            + (sessionsInCurriculum + 2) + " tokens.");
                 }
                 for (int j = 2; j < lineTokens.length; j++) {
-                    Session session = courseMap.get(lineTokens[j]);
+                    Session session = sessionMap.get(lineTokens[j]);
                     if (session == null) {
                         throw new IllegalArgumentException("Read line (" + line + ") uses an unexisting session("
                                 + lineTokens[j] + ").");
@@ -237,41 +251,55 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
                 }
                 curriculumList.add(curriculum);
             }
+
             schedule.setCurriculumList(curriculumList);
+
         }
 
-        private void readUnavailablePeriodPenaltyList(SessionSchedule schedule, Map<String, Session> courseMap,
+        private void readUnavailablePeriodPenaltyList(SessionSchedule schedule, Map<String, Session> sessionMap,
                 Map<List<Integer>, Period> periodMap, int unavailablePeriodPenaltyListSize)
                 throws IOException {
+
             readEmptyLine();
             readConstantLine("UNAVAILABILITY_CONSTRAINTS:");
             List<UnavailablePeriodPenalty> penaltyList = new ArrayList<>(
                     unavailablePeriodPenaltyListSize);
+
             for (int i = 0; i < unavailablePeriodPenaltyListSize; i++) {
+
                 UnavailablePeriodPenalty penalty = new UnavailablePeriodPenalty();
                 penalty.setId((long) i);
-                // Unavailability_Constraints: <CourseID> <Day> <Day_Period>
+
+                // Unavailability_Constraints: <SessionID> <Day> <Day_Period>
                 String line = bufferedReader.readLine();
                 String[] lineTokens = splitBySpacesOrTabs(line, 3);
-                penalty.setSession(courseMap.get(lineTokens[0]));
+                penalty.setSession(sessionMap.get(lineTokens[0]));
                 int dayIndex = Integer.parseInt(lineTokens[1]);
                 int timeslotIndex = Integer.parseInt(lineTokens[2]);
+
                 Period period = periodMap.get(Arrays.asList(dayIndex, timeslotIndex));
                 if (period == null) {
                     throw new IllegalArgumentException("Read line (" + line + ") uses an unexisting period("
                             + dayIndex + " " + timeslotIndex + ").");
                 }
+
                 penalty.setPeriod(period);
                 penaltyList.add(penalty);
+
             }
+
             schedule.setUnavailablePeriodPenaltyList(penaltyList);
+
         }
 
         private void createMeetingList(SessionSchedule schedule) {
-            List<Session> courseList = schedule.getSessionList();
-            List<Meeting> meetingList = new ArrayList<>(courseList.size());
+
+            List<Session> sessionList = schedule.getSessionList();
+            List<Meeting> meetingList = new ArrayList<>(sessionList.size());
+
             long id = 0L;
-            for (Session session : courseList) {
+
+            for (Session session : sessionList) {
                 for (int i = 0; i < session.getMeetingSize(); i++) {
                     Meeting meeting = new Meeting();
                     meeting.setId(id);
@@ -283,7 +311,9 @@ public class MusicAcademyImporter extends AbstractTxtSolutionImporter<SessionSch
                     meetingList.add(meeting);
                 }
             }
+
             schedule.setMeetingList(meetingList);
+
         }
 
     }

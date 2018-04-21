@@ -8,18 +8,6 @@
       <xStreamAnnotatedClass>org.optaplanner.examples.musicacademy.domain.SessionSchedule</xStreamAnnotatedClass>
       <inputSolutionFile>data/musicacademy/unsolved/comp01.xml</inputSolutionFile>
       <inputSolutionFile>data/musicacademy/unsolved/comp02.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp03.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp04.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp05.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp06.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp07.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp08.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp09.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp10.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp11.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp12.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp13.xml</inputSolutionFile>
-      <inputSolutionFile>data/musicacademy/unsolved/comp14.xml</inputSolutionFile>
       <!--<problemStatisticType>BEST_SCORE</problemStatisticType>-->
       <!--<problemStatisticType>STEP_SCORE</problemStatisticType>-->
       <!--<problemStatisticType>SCORE_CALCULATION_SPEED</problemStatisticType>-->
