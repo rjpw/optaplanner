@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
+
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
@@ -48,14 +50,15 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.LayoutStyle;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileFilter;
 
 import org.apache.commons.io.FilenameUtils;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.score.FeasibilityScore;
 import org.optaplanner.core.api.score.Score;
+import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.business.SolutionBusiness;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
 import org.optaplanner.swing.impl.TangoColorFactory;
@@ -72,7 +75,7 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     public static final ImageIcon OPTA_PLANNER_ICON = new ImageIcon(
             SolverAndPersistenceFrame.class.getResource("optaPlannerIcon.png"));
 
-    private final SolutionBusiness<Solution_> solutionBusiness;
+    private final SolutionBusiness<Solution_, ?> solutionBusiness;
     private final ImageIcon indictmentHeatMapTrueIcon;
     private final ImageIcon indictmentHeatMapFalseIcon;
     private final ImageIcon refreshScreenDuringSolvingTrueIcon;
@@ -87,6 +90,7 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     private Action saveAction;
     private Action importAction;
     private Action exportAction;
+    private Action[] extraActions;
     private JToggleButton refreshScreenDuringSolvingToggleButton;
     private JToggleButton indictmentHeatMapToggleButton;
     private Action solveAction;
@@ -98,15 +102,26 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     private JTextField scoreField;
     private ShowConstraintMatchesDialogAction showConstraintMatchesDialogAction;
 
-
-    public SolverAndPersistenceFrame(SolutionBusiness<Solution_> solutionBusiness,
-            SolutionPanel<Solution_> solutionPanel) {
+    public SolverAndPersistenceFrame(SolutionBusiness<Solution_, ?> solutionBusiness,
+            SolutionPanel<Solution_> solutionPanel, CommonApp.ExtraAction<Solution_>[] extraActions) {
         super(solutionBusiness.getAppName() + " OptaPlanner example");
         this.solutionBusiness = solutionBusiness;
         this.solutionPanel = solutionPanel;
         setIconImage(OPTA_PLANNER_ICON.getImage());
         solutionPanel.setSolutionBusiness(solutionBusiness);
         solutionPanel.setSolverAndPersistenceFrame(this);
+        this.extraActions = new Action[extraActions.length];
+        for (int i = 0; i < extraActions.length; i++) {
+            BiConsumer<SolutionBusiness<Solution_, ?>, SolutionPanel<Solution_>> consumer =
+                    extraActions[i].getConsumer();
+            this.extraActions[i] = new AbstractAction(extraActions[i].getName()) {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    consumer.accept(SolverAndPersistenceFrame.this.solutionBusiness,
+                            SolverAndPersistenceFrame.this.solutionPanel);
+                }
+            };
+        }
         indictmentHeatMapTrueIcon = new ImageIcon(getClass().getResource("indictmentHeatMapTrueIcon.png"));
         indictmentHeatMapFalseIcon = new ImageIcon(getClass().getResource("indictmentHeatMapFalseIcon.png"));
         refreshScreenDuringSolvingTrueIcon = new ImageIcon(getClass().getResource("refreshScreenDuringSolvingTrueIcon.png"));
@@ -249,18 +264,31 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
         GroupLayout toolBarLayout = new GroupLayout(toolBar);
         toolBar.setLayout(toolBarLayout);
 
-        importAction = new ImportAction();
-        importAction.setEnabled(solutionBusiness.hasImporter());
-        JButton importButton = new JButton(importAction);
+        JButton importButton;
+        if (solutionBusiness.hasImporter()) {
+            importAction = new ImportAction();
+            importButton = new JButton(importAction);
+        } else {
+            importButton = null;
+        }
         openAction = new OpenAction();
         openAction.setEnabled(true);
         JButton openButton = new JButton(openAction);
         saveAction = new SaveAction();
         saveAction.setEnabled(false);
         JButton saveButton = new JButton(saveAction);
-        exportAction = new ExportAction();
-        exportAction.setEnabled(false);
-        JButton exportButton = new JButton(exportAction);
+        JButton exportButton;
+        if (solutionBusiness.hasExporter()) {
+            exportAction = new ExportAction();
+            exportAction.setEnabled(false);
+            exportButton = new JButton(exportAction);
+        } else {
+            exportButton = null;
+        }
+        JButton[] extraButtons = new JButton[extraActions.length];
+        for (int i = 0; i < extraActions.length; i++) {
+            extraButtons[i] = new JButton(extraActions[i]);
+        }
 
         progressBar = new JProgressBar(0, 100);
 
@@ -277,21 +305,39 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
         solveButton.setMinimumSize(terminateSolvingEarlyButton.getMinimumSize());
         solveButton.setPreferredSize(terminateSolvingEarlyButton.getPreferredSize());
 
-        toolBarLayout.setHorizontalGroup(toolBarLayout.createSequentialGroup()
-                .addComponent(importButton)
-                .addComponent(openButton)
-                .addComponent(saveButton)
-                .addComponent(exportButton)
-                .addGap(10)
-                .addComponent(solvePanel, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
-                .addComponent(progressBar, 20, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE));
-        toolBarLayout.setVerticalGroup(toolBarLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
-                .addComponent(importButton)
-                .addComponent(openButton)
-                .addComponent(saveButton)
-                .addComponent(exportButton)
-                .addComponent(solvePanel)
-                .addComponent(progressBar));
+        GroupLayout.SequentialGroup horizontalGroup = toolBarLayout.createSequentialGroup();
+        if (solutionBusiness.hasImporter()) {
+            horizontalGroup.addComponent(importButton);
+        }
+        horizontalGroup.addComponent(openButton);
+        horizontalGroup.addComponent(saveButton);
+        if (solutionBusiness.hasExporter()) {
+            horizontalGroup.addComponent(exportButton);
+        }
+        for (JButton extraButton : extraButtons) {
+            horizontalGroup.addComponent(extraButton);
+        }
+        horizontalGroup.addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED,
+                GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE);
+        horizontalGroup.addComponent(solvePanel, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE,
+                GroupLayout.PREFERRED_SIZE);
+        horizontalGroup.addComponent(progressBar, 20, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE);
+        toolBarLayout.setHorizontalGroup(horizontalGroup);
+        GroupLayout.ParallelGroup verticalGroup = toolBarLayout.createParallelGroup(GroupLayout.Alignment.CENTER);
+        if (solutionBusiness.hasImporter()) {
+            verticalGroup.addComponent(importButton);
+        }
+        verticalGroup.addComponent(openButton);
+        verticalGroup.addComponent(saveButton);
+        if (solutionBusiness.hasExporter()) {
+            verticalGroup.addComponent(exportButton);
+        }
+        for (JButton extraButton : extraButtons) {
+            verticalGroup.addComponent(extraButton);
+        }
+        verticalGroup.addComponent(solvePanel);
+        verticalGroup.addComponent(progressBar);
+        toolBarLayout.setVerticalGroup(verticalGroup);
         return toolBar;
     }
 
@@ -538,8 +584,7 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
         public void actionPerformed(ActionEvent e) {
             fileChooser.setSelectedFile(new File(solutionBusiness.getExportDataDir(),
                     FilenameUtils.getBaseName(solutionBusiness.getSolutionFileName())
-                            + "." + solutionBusiness.getExportFileSuffix()
-            ));
+                            + "." + solutionBusiness.getExportFileSuffix()));
             int approved = fileChooser.showSaveDialog(SolverAndPersistenceFrame.this);
             if (approved == JFileChooser.APPROVE_OPTION) {
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
@@ -594,8 +639,7 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
         indictmentHeatMapToggleButton.setToolTipText("Show indictment heat map");
         indictmentHeatMapToggleButton.addActionListener(e -> {
             boolean selected = indictmentHeatMapToggleButton.isSelected();
-            indictmentHeatMapToggleButton.setIcon(selected ?
-                    indictmentHeatMapTrueIcon : indictmentHeatMapFalseIcon);
+            indictmentHeatMapToggleButton.setIcon(selected ? indictmentHeatMapTrueIcon : indictmentHeatMapFalseIcon);
             solutionPanel.setUseIndictmentColor(selected);
             resetScreen();
         });
@@ -609,8 +653,9 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
         refreshScreenDuringSolvingToggleButton = new JToggleButton(refreshScreenDuringSolvingTrueIcon, true);
         refreshScreenDuringSolvingToggleButton.setToolTipText("Refresh screen during solving");
         refreshScreenDuringSolvingToggleButton.addActionListener(e -> {
-            refreshScreenDuringSolvingToggleButton.setIcon(refreshScreenDuringSolvingToggleButton.isSelected() ?
-                    refreshScreenDuringSolvingTrueIcon : refreshScreenDuringSolvingFalseIcon);
+            refreshScreenDuringSolvingToggleButton
+                    .setIcon(refreshScreenDuringSolvingToggleButton.isSelected() ? refreshScreenDuringSolvingTrueIcon
+                            : refreshScreenDuringSolvingFalseIcon);
         });
         scorePanel.add(refreshScreenDuringSolvingToggleButton, BorderLayout.EAST);
         return scorePanel;
@@ -619,7 +664,8 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     private class ShowConstraintMatchesDialogAction extends AbstractAction {
 
         public ShowConstraintMatchesDialogAction() {
-            super("Constraint matches", new ImageIcon(SolverAndPersistenceFrame.class.getResource("showConstraintMatchesDialogAction.png")));
+            super("Constraint matches",
+                    new ImageIcon(SolverAndPersistenceFrame.class.getResource("showConstraintMatchesDialogAction.png")));
         }
 
         @Override
@@ -630,7 +676,7 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
 
     }
 
-    private void setSolutionLoaded(Object eventSource) {
+    public void setSolutionLoaded(Object eventSource) {
         if (eventSource != quickOpenUnsolvedJList) {
             quickOpenUnsolvedJList.clearSelection();
         }
@@ -646,10 +692,14 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     private void setSolvingState(boolean solving) {
         quickOpenUnsolvedJList.setEnabled(!solving);
         quickOpenSolvedJList.setEnabled(!solving);
-        importAction.setEnabled(!solving && solutionBusiness.hasImporter());
+        if (solutionBusiness.hasImporter()) {
+            importAction.setEnabled(!solving);
+        }
         openAction.setEnabled(!solving);
         saveAction.setEnabled(!solving);
-        exportAction.setEnabled(!solving && solutionBusiness.hasExporter());
+        if (solutionBusiness.hasExporter()) {
+            exportAction.setEnabled(!solving);
+        }
         solveAction.setEnabled(!solving);
         solveButton.setVisible(!solving);
         terminateSolvingEarlyAction.setEnabled(solving);
@@ -683,11 +733,8 @@ public class SolverAndPersistenceFrame<Solution_> extends JFrame {
     private Color determineScoreFieldForeground(Score<?> score) {
         if (!score.isSolutionInitialized()) {
             return TangoColorFactory.SCARLET_3;
-        } else if (!(score instanceof FeasibilityScore)) {
-            return Color.BLACK;
         } else {
-            FeasibilityScore<?> feasibilityScore = (FeasibilityScore<?>) score;
-            return feasibilityScore.isFeasible() ? TangoColorFactory.CHAMELEON_3 : TangoColorFactory.ORANGE_3;
+            return score.isFeasible() ? TangoColorFactory.CHAMELEON_3 : TangoColorFactory.ORANGE_3;
         }
     }
 

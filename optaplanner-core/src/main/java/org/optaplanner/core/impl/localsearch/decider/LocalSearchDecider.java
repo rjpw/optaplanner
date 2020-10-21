@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,12 @@ import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.localsearch.decider.acceptor.Acceptor;
-import org.optaplanner.core.impl.localsearch.decider.forager.Forager;
+import org.optaplanner.core.impl.localsearch.decider.forager.LocalSearchForager;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchPhaseScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.solver.termination.Termination;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,16 +39,16 @@ public class LocalSearchDecider<Solution_> {
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 
     protected final String logIndentation;
-    protected final Termination termination;
-    protected final MoveSelector moveSelector;
-    protected final Acceptor acceptor;
-    protected final Forager forager;
+    protected final Termination<Solution_> termination;
+    protected final MoveSelector<Solution_> moveSelector;
+    protected final Acceptor<Solution_> acceptor;
+    protected final LocalSearchForager<Solution_> forager;
 
     protected boolean assertMoveScoreFromScratch = false;
     protected boolean assertExpectedUndoMoveScore = false;
 
-    public LocalSearchDecider(String logIndentation,
-            Termination termination, MoveSelector moveSelector, Acceptor acceptor, Forager forager) {
+    public LocalSearchDecider(String logIndentation, Termination<Solution_> termination,
+            MoveSelector<Solution_> moveSelector, Acceptor<Solution_> acceptor, LocalSearchForager<Solution_> forager) {
         this.logIndentation = logIndentation;
         this.termination = termination;
         this.moveSelector = moveSelector;
@@ -57,19 +56,19 @@ public class LocalSearchDecider<Solution_> {
         this.forager = forager;
     }
 
-    public Termination getTermination() {
+    public Termination<Solution_> getTermination() {
         return termination;
     }
 
-    public MoveSelector getMoveSelector() {
+    public MoveSelector<Solution_> getMoveSelector() {
         return moveSelector;
     }
 
-    public Acceptor getAcceptor() {
+    public Acceptor<Solution_> getAcceptor() {
         return acceptor;
     }
 
-    public Forager getForager() {
+    public LocalSearchForager<Solution_> getForager() {
         return forager;
     }
 
@@ -85,7 +84,7 @@ public class LocalSearchDecider<Solution_> {
     // Worker methods
     // ************************************************************************
 
-    public void solvingStarted(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         moveSelector.solvingStarted(solverScope);
         acceptor.solvingStarted(solverScope);
         forager.solvingStarted(solverScope);
@@ -104,14 +103,12 @@ public class LocalSearchDecider<Solution_> {
     }
 
     public void decideNextStep(LocalSearchStepScope<Solution_> stepScope) {
-        InnerScoreDirector<Solution_> scoreDirector = stepScope.getScoreDirector();
+        InnerScoreDirector<Solution_, ?> scoreDirector = stepScope.getScoreDirector();
         scoreDirector.setAllChangesWillBeUndoneBeforeStepEnds(true);
         int moveIndex = 0;
         for (Move<Solution_> move : moveSelector) {
-            LocalSearchMoveScope<Solution_> moveScope = new LocalSearchMoveScope<>(stepScope);
-            moveScope.setMoveIndex(moveIndex);
+            LocalSearchMoveScope<Solution_> moveScope = new LocalSearchMoveScope<>(stepScope, moveIndex, move);
             moveIndex++;
-            moveScope.setMove(move);
             // TODO use Selector filtering to filter out not doable moves
             if (!move.isMoveDoable(scoreDirector)) {
                 logger.trace("{}        Move index ({}) not doable, ignoring move ({}).",
@@ -128,28 +125,20 @@ public class LocalSearchDecider<Solution_> {
             }
         }
         scoreDirector.setAllChangesWillBeUndoneBeforeStepEnds(false);
-        LocalSearchMoveScope<Solution_> pickedMoveScope = forager.pickMove(stepScope);
-        if (pickedMoveScope != null) {
-            Move<Solution_> step = pickedMoveScope.getMove();
-            stepScope.setStep(step);
-            if (logger.isDebugEnabled()) {
-                stepScope.setStepString(step.toString());
-            }
-            stepScope.setUndoStep(pickedMoveScope.getUndoMove());
-            stepScope.setScore(pickedMoveScope.getScore());
-        }
+        pickMove(stepScope);
     }
 
-    private void doMove(LocalSearchMoveScope<Solution_> moveScope) {
-        ScoreDirector<Solution_> scoreDirector = moveScope.getScoreDirector();
-        Move<Solution_> move = moveScope.getMove();
-        Move<Solution_> undoMove = move.doMove(scoreDirector);
-        moveScope.setUndoMove(undoMove);
-        processMove(moveScope);
-        undoMove.doMove(scoreDirector);
+    protected <Score_ extends Score<Score_>> void doMove(LocalSearchMoveScope<Solution_> moveScope) {
+        InnerScoreDirector<Solution_, Score_> scoreDirector = moveScope.getScoreDirector();
+        scoreDirector.doAndProcessMove(moveScope.getMove(), assertMoveScoreFromScratch, score -> {
+            moveScope.setScore(score);
+            boolean accepted = acceptor.isAccepted(moveScope);
+            moveScope.setAccepted(accepted);
+            forager.addMove(moveScope);
+        });
         if (assertExpectedUndoMoveScore) {
-            LocalSearchPhaseScope<Solution_> phaseScope = moveScope.getStepScope().getPhaseScope();
-            phaseScope.assertExpectedUndoMoveScore(move, undoMove, phaseScope.getLastCompletedStepScope().getScore());
+            scoreDirector.assertExpectedUndoMoveScore(moveScope.getMove(),
+                    (Score_) moveScope.getStepScope().getPhaseScope().getLastCompletedStepScope().getScore());
         }
         logger.trace("{}        Move index ({}), score ({}), accepted ({}), move ({}).",
                 logIndentation,
@@ -157,15 +146,16 @@ public class LocalSearchDecider<Solution_> {
                 moveScope.getMove());
     }
 
-    private void processMove(LocalSearchMoveScope<Solution_> moveScope) {
-        Score score = moveScope.getStepScope().getPhaseScope().calculateScore();
-        if (assertMoveScoreFromScratch) {
-            moveScope.getStepScope().getPhaseScope().assertWorkingScoreFromScratch(score, moveScope.getMove());
+    protected void pickMove(LocalSearchStepScope<Solution_> stepScope) {
+        LocalSearchMoveScope<Solution_> pickedMoveScope = forager.pickMove(stepScope);
+        if (pickedMoveScope != null) {
+            Move<Solution_> step = pickedMoveScope.getMove();
+            stepScope.setStep(step);
+            if (logger.isDebugEnabled()) {
+                stepScope.setStepString(step.toString());
+            }
+            stepScope.setScore(pickedMoveScope.getScore());
         }
-        moveScope.setScore(score);
-        boolean accepted = acceptor.isAccepted(moveScope);
-        moveScope.setAccepted(accepted);
-        forager.addMove(moveScope);
     }
 
     public void stepEnded(LocalSearchStepScope<Solution_> stepScope) {
@@ -180,7 +170,7 @@ public class LocalSearchDecider<Solution_> {
         forager.phaseEnded(phaseScope);
     }
 
-    public void solvingEnded(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         moveSelector.solvingEnded(solverScope);
         acceptor.solvingEnded(solverScope);
         forager.solvingEnded(solverScope);

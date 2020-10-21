@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.domain.valuerange.ValueRange;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.valuerange.descriptor.ValueRangeDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
@@ -98,17 +97,25 @@ public class SwapMove<Solution_> extends AbstractMove<Solution_> {
     }
 
     @Override
+    public SwapMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new SwapMove<>(variableDescriptorList,
+                destinationScoreDirector.lookUpWorkingObject(leftEntity),
+                destinationScoreDirector.lookUpWorkingObject(rightEntity));
+    }
+
+    @Override
     protected void doMoveOnGenuineVariables(ScoreDirector<Solution_> scoreDirector) {
+        InnerScoreDirector<Solution_, ?> innerScoreDirector = (InnerScoreDirector<Solution_, ?>) scoreDirector;
         for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
             Object oldLeftValue = variableDescriptor.getValue(leftEntity);
             Object oldRightValue = variableDescriptor.getValue(rightEntity);
             if (!Objects.equals(oldLeftValue, oldRightValue)) {
-                scoreDirector.beforeVariableChanged(variableDescriptor, leftEntity);
+                innerScoreDirector.beforeVariableChanged(variableDescriptor, leftEntity);
                 variableDescriptor.setValue(leftEntity, oldRightValue);
-                scoreDirector.afterVariableChanged(variableDescriptor, leftEntity);
-                scoreDirector.beforeVariableChanged(variableDescriptor, rightEntity);
+                innerScoreDirector.afterVariableChanged(variableDescriptor, leftEntity);
+                innerScoreDirector.beforeVariableChanged(variableDescriptor, rightEntity);
                 variableDescriptor.setValue(rightEntity, oldLeftValue);
-                scoreDirector.afterVariableChanged(variableDescriptor, rightEntity);
+                innerScoreDirector.afterVariableChanged(variableDescriptor, rightEntity);
             }
         }
     }
@@ -149,23 +156,19 @@ public class SwapMove<Solution_> extends AbstractMove<Solution_> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof SwapMove) {
-            SwapMove<?> other = (SwapMove) o;
-            return new EqualsBuilder()
-                    .append(leftEntity, other.leftEntity)
-                    .append(rightEntity, other.rightEntity)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final SwapMove<?> swapMove = (SwapMove<?>) o;
+        return Objects.equals(variableDescriptorList, swapMove.variableDescriptorList) &&
+                Objects.equals(leftEntity, swapMove.leftEntity) &&
+                Objects.equals(rightEntity, swapMove.rightEntity);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(leftEntity)
-                .append(rightEntity)
-                .toHashCode();
+        return Objects.hash(variableDescriptorList, leftEntity, rightEntity);
     }
 
     @Override

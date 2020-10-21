@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,35 +31,31 @@ import org.optaplanner.core.impl.heuristic.selector.AbstractSelector;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
-import org.optaplanner.core.impl.heuristic.selector.entity.pillar.DefaultPillarSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 import org.optaplanner.core.impl.solver.random.RandomUtils;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 /**
  * This is the common {@link SubChainSelector} implementation.
  */
-public class DefaultSubChainSelector extends AbstractSelector
-        implements SubChainSelector, SelectionCacheLifecycleListener {
+public class DefaultSubChainSelector<Solution_> extends AbstractSelector<Solution_>
+        implements SubChainSelector<Solution_>, SelectionCacheLifecycleListener<Solution_> {
 
     protected static final SelectionCacheType CACHE_TYPE = SelectionCacheType.STEP;
 
-    protected final EntityIndependentValueSelector valueSelector;
+    protected final EntityIndependentValueSelector<Solution_> valueSelector;
     protected final boolean randomSelection;
 
     protected SingletonInverseVariableSupply inverseVariableSupply;
 
-    /**
-     * Unlike {@link DefaultPillarSelector#minimumSubPillarSize} and {@link DefaultPillarSelector#maximumSubPillarSize},
-     * the sub selection here is a sequence. For example from ABCDE, it can select BCD, but not ACD.
-     */
+    // The sub selection here is a sequence. For example from ABCDE, it can select BCD, but not ACD.
     protected final int minimumSubChainSize;
     protected final int maximumSubChainSize;
 
     protected List<SubChain> anchorTrailingChainList = null;
 
-    public DefaultSubChainSelector(EntityIndependentValueSelector valueSelector, boolean randomSelection,
+    public DefaultSubChainSelector(EntityIndependentValueSelector<Solution_> valueSelector, boolean randomSelection,
             int minimumSubChainSize, int maximumSubChainSize) {
         this.valueSelector = valueSelector;
         this.randomSelection = randomSelection;
@@ -75,7 +71,7 @@ public class DefaultSubChainSelector extends AbstractSelector
                     + ") with neverEnding (" + valueSelector.isNeverEnding() + ").");
         }
         phaseLifecycleSupport.addEventListener(valueSelector);
-        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(CACHE_TYPE, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge<>(CACHE_TYPE, this));
         this.minimumSubChainSize = minimumSubChainSize;
         this.maximumSubChainSize = maximumSubChainSize;
         if (minimumSubChainSize < 1) {
@@ -90,7 +86,7 @@ public class DefaultSubChainSelector extends AbstractSelector
     }
 
     @Override
-    public GenuineVariableDescriptor getVariableDescriptor() {
+    public GenuineVariableDescriptor<Solution_> getVariableDescriptor() {
         return valueSelector.getVariableDescriptor();
     }
 
@@ -100,15 +96,15 @@ public class DefaultSubChainSelector extends AbstractSelector
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
-        SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
-        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
-        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand(variableDescriptor));
+        SupplyManager<Solution_> supplyManager = solverScope.getScoreDirector().getSupplyManager();
+        GenuineVariableDescriptor<Solution_> variableDescriptor = valueSelector.getVariableDescriptor();
+        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand<>(variableDescriptor));
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         inverseVariableSupply = null;
     }
@@ -118,9 +114,9 @@ public class DefaultSubChainSelector extends AbstractSelector
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
-        InnerScoreDirector scoreDirector = solverScope.getScoreDirector();
-        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
+    public void constructCache(SolverScope<Solution_> solverScope) {
+        InnerScoreDirector<Solution_, ?> scoreDirector = solverScope.getScoreDirector();
+        GenuineVariableDescriptor<Solution_> variableDescriptor = valueSelector.getVariableDescriptor();
         long valueSize = valueSelector.getSize();
         // Fail-fast when anchorTrailingChainList.size() could ever be too big
         if (valueSize > (long) Integer.MAX_VALUE) {
@@ -135,8 +131,9 @@ public class DefaultSubChainSelector extends AbstractSelector
                 anchorList.add(value);
             }
         }
-        anchorTrailingChainList = new ArrayList<>(anchorList.size());
-        int anchorChainInitialCapacity = ((int) valueSize / anchorList.size()) + 1;
+        int anchorListSize = Math.max(anchorList.size(), 1);
+        anchorTrailingChainList = new ArrayList<>(anchorListSize);
+        int anchorChainInitialCapacity = ((int) valueSize / anchorListSize) + 1;
         for (Object anchor : anchorList) {
             List<Object> anchorChain = new ArrayList<>(anchorChainInitialCapacity);
             Object trailingEntity = inverseVariableSupply.getInverseSingleton(anchor);
@@ -151,7 +148,7 @@ public class DefaultSubChainSelector extends AbstractSelector
     }
 
     @Override
-    public void disposeCache(DefaultSolverScope solverScope) {
+    public void disposeCache(SolverScope<Solution_> solverScope) {
         anchorTrailingChainList = null;
     }
 
@@ -182,7 +179,8 @@ public class DefaultSubChainSelector extends AbstractSelector
         long anchorTrailingChainSize = (long) anchorTrailingChain.getSize();
         long n = anchorTrailingChainSize - (long) minimumSubChainSize + 1L;
         long m = (maximumSubChainSize >= anchorTrailingChainSize)
-                ? 0L : anchorTrailingChainSize - (long) maximumSubChainSize;
+                ? 0L
+                : anchorTrailingChainSize - (long) maximumSubChainSize;
         return (n * (n + 1L) / 2L) - (m * (m + 1L) / 2L);
     }
 
@@ -208,7 +206,7 @@ public class DefaultSubChainSelector extends AbstractSelector
     @Override
     public ListIterator<SubChain> listIterator(int index) {
         if (!randomSelection) {
-            // TODO Implement more efficient ListIterator https://issues.jboss.org/browse/PLANNER-37
+            // TODO Implement more efficient ListIterator https://issues.redhat.com/browse/PLANNER-37
             OriginalSubChainIterator it = new OriginalSubChainIterator(anchorTrailingChainList.listIterator());
             for (int i = 0; i < index; i++) {
                 it.next();
@@ -271,19 +269,19 @@ public class DefaultSubChainSelector extends AbstractSelector
         @Override
         public boolean hasPrevious() {
             throw new UnsupportedOperationException("The operation hasPrevious() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
         @Override
         public SubChain previous() {
             throw new UnsupportedOperationException("The operation previous() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
         @Override
         public int previousIndex() {
             throw new UnsupportedOperationException("The operation previousIndex() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
         @Override

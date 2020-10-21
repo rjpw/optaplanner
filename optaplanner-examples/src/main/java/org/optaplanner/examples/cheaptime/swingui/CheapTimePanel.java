@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2019 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,22 @@
 
 package org.optaplanner.examples.cheaptime.swingui;
 
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.nullsFirst;
+import static java.util.function.Function.identity;
+
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.swing.JCheckBox;
 import javax.swing.SwingConstants;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.NumberAxis;
@@ -38,12 +41,12 @@ import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.HighLowRenderer;
 import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
+import org.jfree.chart.util.ShapeUtils;
 import org.jfree.data.time.FixedMillisecond;
 import org.jfree.data.time.ohlc.OHLCSeries;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-import org.jfree.util.ShapeUtilities;
 import org.optaplanner.examples.cheaptime.domain.CheapTimeSolution;
 import org.optaplanner.examples.cheaptime.domain.Machine;
 import org.optaplanner.examples.cheaptime.domain.MachineCapacity;
@@ -56,10 +59,17 @@ import org.optaplanner.swing.impl.TangoColorFactory;
 
 public class CheapTimePanel extends SolutionPanel<CheapTimeSolution> {
 
-    private StableTaskAssignmentComparator stableTaskAssignmentComparator = new StableTaskAssignmentComparator();
-    private GroupByMachineTaskAssignmentComparator groupByMachineTaskAssignmentComparator = new GroupByMachineTaskAssignmentComparator();
-
     public static final String LOGO_PATH = "/org/optaplanner/examples/cheaptime/swingui/cheapTimeLogo.png";
+    private static final Comparator<TaskAssignment> STABLE_COMPARATOR = comparing(
+            (TaskAssignment a) -> a.getTask().getStartPeriodRangeFrom())
+                    .thenComparingInt(a -> a.getTask().getStartPeriodRangeTo())
+                    .thenComparingInt(a -> a.getTask().getDuration())
+                    .thenComparingLong(TaskAssignment::getId);
+    private static final Comparator<TaskAssignment> GROUP_BY_MACHINE_COMPARATOR = comparing(TaskAssignment::getMachine,
+            nullsFirst(comparing(Machine::getId)))
+                    .thenComparing(TaskAssignment::getStartPeriod, nullsFirst(comparing(identity())))
+                    .thenComparingInt(a -> a.getTask().getDuration())
+                    .thenComparingLong(TaskAssignment::getId);
 
     private JCheckBox groupByMachineCheckBox;
 
@@ -121,8 +131,7 @@ public class CheapTimePanel extends SolutionPanel<CheapTimeSolution> {
         }
         List<TaskAssignment> taskAssignmentList = new ArrayList<>(solution.getTaskAssignmentList());
         Collections.sort(taskAssignmentList,
-                groupByMachineCheckBox.isSelected() ? groupByMachineTaskAssignmentComparator
-                        : stableTaskAssignmentComparator);
+                groupByMachineCheckBox.isSelected() ? GROUP_BY_MACHINE_COMPARATOR : STABLE_COMPARATOR);
         int pixelIndex = 0;
         for (TaskAssignment taskAssignment : taskAssignmentList) {
             Task task = taskAssignment.getTask();
@@ -153,14 +162,13 @@ public class CheapTimePanel extends SolutionPanel<CheapTimeSolution> {
         seriesCollection.addSeries(series);
         XYItemRenderer renderer = new StandardXYItemRenderer(StandardXYItemRenderer.SHAPES);
         renderer.setSeriesPaint(0, TangoColorFactory.ORANGE_1);
-        renderer.setSeriesShape(0, ShapeUtilities.createDiamond(2.0F));
+        renderer.setSeriesShape(0, ShapeUtils.createDiamond(2.0F));
         NumberAxis domainAxis = new NumberAxis("Power price");
         return new XYPlot(seriesCollection, domainAxis, null, renderer);
     }
 
     private XYPlot createAvailableCapacityPlot(TangoColorFactory tangoColorFactory, CheapTimeSolution solution) {
-        Map<MachineCapacity, List<Integer>> availableMap
-                = new LinkedHashMap<>(solution.getMachineCapacityList().size());
+        Map<MachineCapacity, List<Integer>> availableMap = new LinkedHashMap<>(solution.getMachineCapacityList().size());
         for (MachineCapacity machineCapacity : solution.getMachineCapacityList()) {
             List<Integer> machineAvailableList = new ArrayList<>(
                     solution.getGlobalPeriodRangeTo());
@@ -201,42 +209,11 @@ public class CheapTimePanel extends SolutionPanel<CheapTimeSolution> {
             }
             seriesCollection.addSeries(machineSeries);
             renderer.setSeriesPaint(seriesIndex, tangoColorFactory.pickColor(machine));
-            renderer.setSeriesShape(seriesIndex, ShapeUtilities.createDiamond(1.5F));
+            renderer.setSeriesShape(seriesIndex, ShapeUtils.createDiamond(1.5F));
             renderer.setSeriesVisibleInLegend(seriesIndex, false);
             seriesIndex++;
         }
         NumberAxis domainAxis = new NumberAxis("Capacity");
         return new XYPlot(seriesCollection, domainAxis, null, renderer);
     }
-
-    private static class StableTaskAssignmentComparator implements Comparator<TaskAssignment>, Serializable {
-
-        @Override
-        public int compare(TaskAssignment a, TaskAssignment b) {
-            return new CompareToBuilder()
-                    .append(a.getTask().getStartPeriodRangeFrom(), b.getTask().getStartPeriodRangeFrom())
-                    .append(a.getTask().getStartPeriodRangeTo(), b.getTask().getStartPeriodRangeTo())
-                    .append(a.getTask().getDuration(), b.getTask().getDuration())
-                    .append(a.getId(), b.getId())
-                    .toComparison();
-        }
-
-    }
-
-    private static class GroupByMachineTaskAssignmentComparator implements Comparator<TaskAssignment>, Serializable {
-
-        @Override
-        public int compare(TaskAssignment a, TaskAssignment b) {
-            Machine aMachine = a.getMachine();
-            Machine bMachine = b.getMachine();
-            return new CompareToBuilder()
-                    .append(aMachine == null ? null : aMachine.getId(), bMachine == null ? null : bMachine.getId())
-                    .append(a.getStartPeriod(), b.getStartPeriod())
-                    .append(a.getTask().getDuration(), b.getTask().getDuration())
-                    .append(a.getId(), b.getId())
-                    .toComparison();
-        }
-
-    }
-
 }

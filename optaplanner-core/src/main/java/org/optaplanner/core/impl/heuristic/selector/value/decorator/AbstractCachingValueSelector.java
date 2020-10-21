@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,17 +27,18 @@ import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecyc
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public abstract class AbstractCachingValueSelector extends AbstractValueSelector
-        implements SelectionCacheLifecycleListener {
+public abstract class AbstractCachingValueSelector<Solution_> extends AbstractValueSelector<Solution_>
+        implements SelectionCacheLifecycleListener<Solution_> {
 
-    protected final EntityIndependentValueSelector childValueSelector;
+    protected final EntityIndependentValueSelector<Solution_> childValueSelector;
     protected final SelectionCacheType cacheType;
 
     protected List<Object> cachedValueList = null;
 
-    public AbstractCachingValueSelector(EntityIndependentValueSelector childValueSelector, SelectionCacheType cacheType) {
+    public AbstractCachingValueSelector(EntityIndependentValueSelector<Solution_> childValueSelector,
+            SelectionCacheType cacheType) {
         this.childValueSelector = childValueSelector;
         this.cacheType = cacheType;
         if (childValueSelector.isNeverEnding()) {
@@ -50,10 +51,10 @@ public abstract class AbstractCachingValueSelector extends AbstractValueSelector
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge<>(cacheType, this));
     }
 
-    public ValueSelector getChildValueSelector() {
+    public ValueSelector<Solution_> getChildValueSelector() {
         return childValueSelector;
     }
 
@@ -67,7 +68,7 @@ public abstract class AbstractCachingValueSelector extends AbstractValueSelector
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         long childSize = childValueSelector.getSize();
         if (childSize > (long) Integer.MAX_VALUE) {
             throw new IllegalStateException("The selector (" + this
@@ -83,12 +84,12 @@ public abstract class AbstractCachingValueSelector extends AbstractValueSelector
     }
 
     @Override
-    public void disposeCache(DefaultSolverScope solverScope) {
+    public void disposeCache(SolverScope<Solution_> solverScope) {
         cachedValueList = null;
     }
 
     @Override
-    public GenuineVariableDescriptor getVariableDescriptor() {
+    public GenuineVariableDescriptor<Solution_> getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 

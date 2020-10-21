@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,40 +29,45 @@ import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractRand
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.move.generic.chained.ChainedChangeMove;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class ChangeMoveSelector extends GenericMoveSelector {
+public class ChangeMoveSelector<Solution_> extends GenericMoveSelector<Solution_> {
 
-    protected final EntitySelector entitySelector;
-    protected final ValueSelector valueSelector;
+    protected final EntitySelector<Solution_> entitySelector;
+    protected final ValueSelector<Solution_> valueSelector;
     protected final boolean randomSelection;
 
     protected final boolean chained;
     protected SingletonInverseVariableSupply inverseVariableSupply = null;
 
-    public ChangeMoveSelector(EntitySelector entitySelector, ValueSelector valueSelector,
+    public ChangeMoveSelector(EntitySelector<Solution_> entitySelector, ValueSelector<Solution_> valueSelector,
             boolean randomSelection) {
         this.entitySelector = entitySelector;
         this.valueSelector = valueSelector;
         this.randomSelection = randomSelection;
-        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
+        GenuineVariableDescriptor<Solution_> variableDescriptor = valueSelector.getVariableDescriptor();
         chained = variableDescriptor.isChained();
         phaseLifecycleSupport.addEventListener(entitySelector);
         phaseLifecycleSupport.addEventListener(valueSelector);
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    public boolean supportsPhaseAndSolverCaching() {
+        return !chained;
+    }
+
+    @Override
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
         if (chained) {
-            SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
-            inverseVariableSupply = supplyManager.demand(
-                    new SingletonInverseVariableDemand(valueSelector.getVariableDescriptor()));
+            SupplyManager<Solution_> supplyManager = solverScope.getScoreDirector().getSupplyManager();
+            inverseVariableSupply =
+                    supplyManager.demand(new SingletonInverseVariableDemand<>(valueSelector.getVariableDescriptor()));
         }
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         if (chained) {
             inverseVariableSupply = null;
@@ -86,11 +91,11 @@ public class ChangeMoveSelector extends GenericMoveSelector {
     @Override
     public long getSize() {
         if (valueSelector instanceof IterableSelector) {
-            return entitySelector.getSize() * ((IterableSelector) valueSelector).getSize();
+            return entitySelector.getSize() * ((IterableSelector<Solution_, ?>) valueSelector).getSize();
         } else {
             long size = 0;
-            for (Iterator it = entitySelector.endingIterator(); it.hasNext(); ) {
-                Object entity =  it.next();
+            for (Iterator<?> it = entitySelector.endingIterator(); it.hasNext();) {
+                Object entity = it.next();
                 size += valueSelector.getSize(entity);
             }
             return size;
@@ -98,37 +103,37 @@ public class ChangeMoveSelector extends GenericMoveSelector {
     }
 
     @Override
-    public Iterator<Move> iterator() {
-        final GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
+    public Iterator<Move<Solution_>> iterator() {
+        final GenuineVariableDescriptor<Solution_> variableDescriptor = valueSelector.getVariableDescriptor();
         if (!randomSelection) {
             if (chained) {
-                return new AbstractOriginalChangeIterator<Move>(entitySelector, valueSelector) {
+                return new AbstractOriginalChangeIterator<Solution_, Move<Solution_>>(entitySelector, valueSelector) {
                     @Override
-                    protected Move newChangeSelection(Object entity, Object toValue) {
-                        return new ChainedChangeMove(entity, variableDescriptor, inverseVariableSupply, toValue);
+                    protected Move<Solution_> newChangeSelection(Object entity, Object toValue) {
+                        return new ChainedChangeMove<>(entity, variableDescriptor, inverseVariableSupply, toValue);
                     }
                 };
             } else {
-                return new AbstractOriginalChangeIterator<Move>(entitySelector, valueSelector) {
+                return new AbstractOriginalChangeIterator<Solution_, Move<Solution_>>(entitySelector, valueSelector) {
                     @Override
-                    protected Move newChangeSelection(Object entity, Object toValue) {
-                        return new ChangeMove(entity, variableDescriptor, toValue);
+                    protected Move<Solution_> newChangeSelection(Object entity, Object toValue) {
+                        return new ChangeMove<>(entity, variableDescriptor, toValue);
                     }
                 };
             }
         } else {
             if (chained) {
-                return new AbstractRandomChangeIterator<Move>(entitySelector, valueSelector) {
+                return new AbstractRandomChangeIterator<Solution_, Move<Solution_>>(entitySelector, valueSelector) {
                     @Override
-                    protected Move newChangeSelection(Object entity, Object toValue) {
-                        return new ChainedChangeMove(entity, variableDescriptor, inverseVariableSupply, toValue);
+                    protected Move<Solution_> newChangeSelection(Object entity, Object toValue) {
+                        return new ChainedChangeMove<>(entity, variableDescriptor, inverseVariableSupply, toValue);
                     }
                 };
             } else {
-                return new AbstractRandomChangeIterator<Move>(entitySelector, valueSelector) {
+                return new AbstractRandomChangeIterator<Solution_, Move<Solution_>>(entitySelector, valueSelector) {
                     @Override
-                    protected Move newChangeSelection(Object entity, Object toValue) {
-                        return new ChangeMove(entity, variableDescriptor, toValue);
+                    protected Move<Solution_> newChangeSelection(Object entity, Object toValue) {
+                        return new ChangeMove<>(entity, variableDescriptor, toValue);
                     }
                 };
             }

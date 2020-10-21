@@ -34,6 +34,10 @@ public final class ReflectionBeanPropertyMemberAccessor implements MemberAccesso
     private final Method setterMethod;
 
     public ReflectionBeanPropertyMemberAccessor(Method getterMethod) {
+        this(getterMethod, false);
+    }
+
+    public ReflectionBeanPropertyMemberAccessor(Method getterMethod, boolean getterOnly) {
         this.getterMethod = getterMethod;
         getterMethod.setAccessible(true); // Performance hack by avoiding security checks
         Class<?> declaringClass = getterMethod.getDeclaringClass();
@@ -42,10 +46,19 @@ public final class ReflectionBeanPropertyMemberAccessor implements MemberAccesso
         }
         propertyType = getterMethod.getReturnType();
         propertyName = ReflectionHelper.getGetterPropertyName(getterMethod);
-        setterMethod = ReflectionHelper.getSetterMethod(declaringClass, getterMethod.getReturnType(), propertyName);
-        if (setterMethod != null) {
-            setterMethod.setAccessible(true); // Performance hack by avoiding security checks
+        if (getterOnly) {
+            setterMethod = null;
+        } else {
+            setterMethod = ReflectionHelper.getSetterMethod(declaringClass, getterMethod.getReturnType(), propertyName);
+            if (setterMethod != null) {
+                setterMethod.setAccessible(true); // Performance hack by avoiding security checks
+            }
         }
+    }
+
+    @Override
+    public Class<?> getDeclaringClass() {
+        return getterMethod.getDeclaringClass();
     }
 
     @Override
@@ -69,7 +82,8 @@ public final class ReflectionBeanPropertyMemberAccessor implements MemberAccesso
             return getterMethod.invoke(bean);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot call property (" + propertyName
-                    + ") getterMethod (" + getterMethod + ") on bean of class (" + bean.getClass() + ").", e);
+                    + ") getterMethod (" + getterMethod + ") on bean of class (" + bean.getClass() + ").\n" +
+                    MemberAccessorFactory.CLASSLOADER_NUDGE_MESSAGE, e);
         } catch (InvocationTargetException e) {
             throw new IllegalStateException("The property (" + propertyName
                     + ") getterMethod (" + getterMethod + ") on bean of class (" + bean.getClass()

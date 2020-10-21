@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
@@ -29,21 +30,21 @@ import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecyc
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.entity.AbstractEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.core.impl.solver.random.RandomUtils;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class ProbabilityEntitySelector extends AbstractEntitySelector implements SelectionCacheLifecycleListener {
+public class ProbabilityEntitySelector<Solution_> extends AbstractEntitySelector<Solution_>
+        implements SelectionCacheLifecycleListener<Solution_> {
 
-    protected final EntitySelector childEntitySelector;
+    protected final EntitySelector<Solution_> childEntitySelector;
     protected final SelectionCacheType cacheType;
-    protected final SelectionProbabilityWeightFactory probabilityWeightFactory;
+    protected final SelectionProbabilityWeightFactory<Solution_, Object> probabilityWeightFactory;
 
     protected NavigableMap<Double, Object> cachedEntityMap = null;
     protected double probabilityWeightTotal = -1.0;
 
-    public ProbabilityEntitySelector(EntitySelector childEntitySelector, SelectionCacheType cacheType,
-            SelectionProbabilityWeightFactory probabilityWeightFactory) {
+    public ProbabilityEntitySelector(EntitySelector<Solution_> childEntitySelector, SelectionCacheType cacheType,
+            SelectionProbabilityWeightFactory<Solution_, Object> probabilityWeightFactory) {
         this.childEntitySelector = childEntitySelector;
         this.cacheType = cacheType;
         this.probabilityWeightFactory = probabilityWeightFactory;
@@ -57,7 +58,7 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge<>(cacheType, this));
     }
 
     @Override
@@ -70,9 +71,9 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         cachedEntityMap = new TreeMap<>();
-        ScoreDirector scoreDirector = solverScope.getScoreDirector();
+        ScoreDirector<Solution_> scoreDirector = solverScope.getScoreDirector();
         double probabilityWeightOffset = 0L;
         for (Object entity : childEntitySelector) {
             double probabilityWeight = probabilityWeightFactory.createProbabilityWeight(
@@ -84,12 +85,12 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
     }
 
     @Override
-    public void disposeCache(DefaultSolverScope solverScope) {
+    public void disposeCache(SolverScope<Solution_> solverScope) {
         probabilityWeightTotal = -1.0;
     }
 
     @Override
-    public EntityDescriptor getEntityDescriptor() {
+    public EntityDescriptor<Solution_> getEntityDescriptor() {
         return childEntitySelector.getEntityDescriptor();
     }
 

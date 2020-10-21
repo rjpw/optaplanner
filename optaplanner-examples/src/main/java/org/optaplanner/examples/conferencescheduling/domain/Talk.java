@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.entity.PlanningPin;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 
@@ -29,10 +30,11 @@ public class Talk extends AbstractPersistable {
 
     private String code;
     private String title;
-    private String talkType;
+    private TalkType talkType;
     private List<Speaker> speakerList;
     private Set<String> themeTrackTagSet;
     private Set<String> sectorTagSet;
+    private Set<String> audienceTypeSet;
     private int audienceLevel;
     private Set<String> contentTagSet;
     private String language;
@@ -44,6 +46,12 @@ public class Talk extends AbstractPersistable {
     private Set<String> preferredRoomTagSet;
     private Set<String> prohibitedRoomTagSet;
     private Set<String> undesiredRoomTagSet;
+    private Set<String> mutuallyExclusiveTalksTagSet;
+    private Set<Talk> prerequisiteTalkSet;
+    private int favoriteCount;
+    private int crowdControlRisk;
+    private Timeslot publishedTimeslot;
+    private Room publishedRoom;
 
     @PlanningPin
     private boolean pinnedByUser = false;
@@ -83,6 +91,10 @@ public class Talk extends AbstractPersistable {
 
     public int overlappingSectorCount(Talk other) {
         return (int) sectorTagSet.stream().filter(tag -> other.sectorTagSet.contains(tag)).count();
+    }
+
+    public int overlappingAudienceTypeCount(Talk other) {
+        return (int) audienceTypeSet.stream().filter(audienceType -> other.audienceTypeSet.contains(audienceType)).count();
     }
 
     public int overlappingContentCount(Talk other) {
@@ -216,9 +228,67 @@ public class Talk extends AbstractPersistable {
         return room.getUnavailableTimeslotSet().contains(timeslot);
     }
 
+    public int overlappingMutuallyExclusiveTalksTagCount(Talk other) {
+        return (int) mutuallyExclusiveTalksTagSet.stream().filter(tag -> other.mutuallyExclusiveTalksTagSet.contains(tag))
+                .count();
+    }
+
+    public int missingPrerequisiteCount() {
+        return (int) prerequisiteTalkSet.stream()
+                .filter(prerequisite -> prerequisite.getTimeslot() == null || timeslot.endsBefore(prerequisite.getTimeslot()))
+                .count();
+    }
+
+    public boolean hasMutualSpeaker(Talk talk) {
+        for (Speaker speaker : talk.getSpeakerList()) {
+            if (speakerList.contains(speaker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Integer getDurationInMinutes() {
+        return timeslot == null ? null : timeslot.getDurationInMinutes();
+    }
+
+    public boolean overlapsTime(Talk other) {
+        return timeslot != null && other.getTimeslot() != null && timeslot.overlapsTime(other.getTimeslot());
+    }
+
+    public int overlappingDurationInMinutes(Talk other) {
+        if (timeslot == null) {
+            return 0;
+        }
+        if (other.getTimeslot() == null) {
+            return 0;
+        }
+        return timeslot.getOverlapInMinutes(other.getTimeslot());
+    }
+
+    public int combinedDurationInMinutes(Talk other) {
+        if (timeslot == null) {
+            return 0;
+        }
+        if (other.getTimeslot() == null) {
+            return 0;
+        }
+        return timeslot.getDurationInMinutes() + other.getTimeslot().getDurationInMinutes();
+    }
+
     @Override
     public String toString() {
         return code;
+    }
+
+    @ValueRangeProvider(id = "timeslotRange")
+    public Set<Timeslot> getTimeslotRange() {
+        return talkType.getCompatibleTimeslotSet();
+    }
+
+    @ValueRangeProvider(id = "roomRange")
+    public Set<Room> getRoomRange() {
+        return talkType.getCompatibleRoomSet();
     }
 
     // ************************************************************************
@@ -241,11 +311,11 @@ public class Talk extends AbstractPersistable {
         this.title = title;
     }
 
-    public String getTalkType() {
+    public TalkType getTalkType() {
         return talkType;
     }
 
-    public void setTalkType(String talkType) {
+    public void setTalkType(TalkType talkType) {
         this.talkType = talkType;
     }
 
@@ -271,6 +341,14 @@ public class Talk extends AbstractPersistable {
 
     public void setSectorTagSet(Set<String> sectorTagSet) {
         this.sectorTagSet = sectorTagSet;
+    }
+
+    public Set<String> getAudienceTypeSet() {
+        return audienceTypeSet;
+    }
+
+    public void setAudienceTypeSet(Set<String> audienceTypeSet) {
+        this.audienceTypeSet = audienceTypeSet;
     }
 
     public int getAudienceLevel() {
@@ -385,11 +463,59 @@ public class Talk extends AbstractPersistable {
         this.room = room;
     }
 
+    public Set<String> getMutuallyExclusiveTalksTagSet() {
+        return mutuallyExclusiveTalksTagSet;
+    }
+
+    public void setMutuallyExclusiveTalksTagSet(Set<String> mutuallyExclusiveTalksTagSet) {
+        this.mutuallyExclusiveTalksTagSet = mutuallyExclusiveTalksTagSet;
+    }
+
+    public Set<Talk> getPrerequisiteTalkSet() {
+        return prerequisiteTalkSet;
+    }
+
+    public void setPrerequisiteTalkSet(Set<Talk> prerequisiteTalkSet) {
+        this.prerequisiteTalkSet = prerequisiteTalkSet;
+    }
+
+    public int getFavoriteCount() {
+        return favoriteCount;
+    }
+
+    public void setFavoriteCount(int favoriteCount) {
+        this.favoriteCount = favoriteCount;
+    }
+
+    public int getCrowdControlRisk() {
+        return crowdControlRisk;
+    }
+
+    public void setCrowdControlRisk(int crowdControlRisk) {
+        this.crowdControlRisk = crowdControlRisk;
+    }
+
+    public Timeslot getPublishedTimeslot() {
+        return publishedTimeslot;
+    }
+
+    public void setPublishedTimeslot(Timeslot publishedTimeslot) {
+        this.publishedTimeslot = publishedTimeslot;
+    }
+
+    public Room getPublishedRoom() {
+        return publishedRoom;
+    }
+
+    public void setPublishedRoom(Room publishedRoom) {
+        this.publishedRoom = publishedRoom;
+    }
+
     // ************************************************************************
     // With methods
     // ************************************************************************
 
-    public Talk withTalkType(String talkType) {
+    public Talk withTalkType(TalkType talkType) {
         this.talkType = talkType;
         return this;
     }
@@ -406,6 +532,11 @@ public class Talk extends AbstractPersistable {
 
     public Talk withSectorTagSet(Set<String> sectorTagSet) {
         this.sectorTagSet = sectorTagSet;
+        return this;
+    }
+
+    public Talk withAudienceTypeSet(Set<String> audienceTypeSet) {
+        this.audienceTypeSet = audienceTypeSet;
         return this;
     }
 
@@ -464,8 +595,23 @@ public class Talk extends AbstractPersistable {
         return this;
     }
 
-    public Talk withTimeslot(Timeslot timeSlot) {
-        this.timeslot = timeSlot;
+    public Talk withMutuallyExclusiveTalksTagSet(Set<String> mutuallyExclusiveTalksTagSet) {
+        this.mutuallyExclusiveTalksTagSet = mutuallyExclusiveTalksTagSet;
+        return this;
+    }
+
+    public Talk withPrerequisiteTalksCodesSet(Set<Talk> prerequisiteTalksCodesSet) {
+        this.prerequisiteTalkSet = prerequisiteTalksCodesSet;
+        return this;
+    }
+
+    public Talk withFavoriteCount(int favoriteCount) {
+        this.favoriteCount = favoriteCount;
+        return this;
+    }
+
+    public Talk withTimeslot(Timeslot timeslot) {
+        this.timeslot = timeslot;
         return this;
     }
 

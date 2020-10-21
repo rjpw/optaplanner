@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,32 +23,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
-import org.optaplanner.core.impl.domain.variable.listener.StatefulVariableListener;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.variable.listener.SourcedVariableListener;
 
 /**
  * Alternative to {@link CollectionInverseVariableListener}.
  */
-public class ExternalizedCollectionInverseVariableSupply implements StatefulVariableListener<Object>, CollectionInverseVariableSupply {
+public class ExternalizedCollectionInverseVariableSupply<Solution_>
+        implements SourcedVariableListener<Solution_, Object>, CollectionInverseVariableSupply {
 
-    protected final VariableDescriptor sourceVariableDescriptor;
+    protected final VariableDescriptor<Solution_> sourceVariableDescriptor;
 
     protected Map<Object, Set<Object>> inverseEntitySetMap = null;
 
-    public ExternalizedCollectionInverseVariableSupply(VariableDescriptor sourceVariableDescriptor) {
+    public ExternalizedCollectionInverseVariableSupply(VariableDescriptor<Solution_> sourceVariableDescriptor) {
         this.sourceVariableDescriptor = sourceVariableDescriptor;
     }
 
     @Override
-    public VariableDescriptor getSourceVariableDescriptor() {
+    public VariableDescriptor<Solution_> getSourceVariableDescriptor() {
         return sourceVariableDescriptor;
     }
 
     @Override
-    public void resetWorkingSolution(ScoreDirector scoreDirector) {
-        EntityDescriptor entityDescriptor = sourceVariableDescriptor.getEntityDescriptor();
+    public void resetWorkingSolution(ScoreDirector<Solution_> scoreDirector) {
+        EntityDescriptor<Solution_> entityDescriptor = sourceVariableDescriptor.getEntityDescriptor();
         List<Object> entityList = entityDescriptor.extractEntities(scoreDirector.getWorkingSolution());
         inverseEntitySetMap = new IdentityHashMap<>(entityList.size());
         for (Object entity : entityList) {
@@ -57,41 +58,41 @@ public class ExternalizedCollectionInverseVariableSupply implements StatefulVari
     }
 
     @Override
-    public void clearWorkingSolution(ScoreDirector scoreDirector) {
+    public void close() {
         inverseEntitySetMap = null;
     }
 
     @Override
-    public void beforeEntityAdded(ScoreDirector scoreDirector, Object entity) {
+    public void beforeEntityAdded(ScoreDirector<Solution_> scoreDirector, Object entity) {
         // Do nothing
     }
 
     @Override
-    public void afterEntityAdded(ScoreDirector scoreDirector, Object entity) {
+    public void afterEntityAdded(ScoreDirector<Solution_> scoreDirector, Object entity) {
         insert(scoreDirector, entity);
     }
 
     @Override
-    public void beforeVariableChanged(ScoreDirector scoreDirector, Object entity) {
+    public void beforeVariableChanged(ScoreDirector<Solution_> scoreDirector, Object entity) {
         retract(scoreDirector, entity);
     }
 
     @Override
-    public void afterVariableChanged(ScoreDirector scoreDirector, Object entity) {
+    public void afterVariableChanged(ScoreDirector<Solution_> scoreDirector, Object entity) {
         insert(scoreDirector, entity);
     }
 
     @Override
-    public void beforeEntityRemoved(ScoreDirector scoreDirector, Object entity) {
+    public void beforeEntityRemoved(ScoreDirector<Solution_> scoreDirector, Object entity) {
         retract(scoreDirector, entity);
     }
 
     @Override
-    public void afterEntityRemoved(ScoreDirector scoreDirector, Object entity) {
+    public void afterEntityRemoved(ScoreDirector<Solution_> scoreDirector, Object entity) {
         // Do nothing
     }
 
-    protected void insert(ScoreDirector scoreDirector, Object entity) {
+    protected void insert(ScoreDirector<Solution_> scoreDirector, Object entity) {
         Object value = sourceVariableDescriptor.getValue(entity);
         if (value == null) {
             return;
@@ -107,7 +108,7 @@ public class ExternalizedCollectionInverseVariableSupply implements StatefulVari
         }
     }
 
-    protected void retract(ScoreDirector scoreDirector, Object entity) {
+    protected void retract(ScoreDirector<Solution_> scoreDirector, Object entity) {
         Object value = sourceVariableDescriptor.getValue(entity);
         if (value == null) {
             return;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChain;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
@@ -36,15 +35,28 @@ public class SubChainReversingChangeMove<Solution_> extends AbstractMove<Solutio
 
     protected final SubChain subChain;
     protected final GenuineVariableDescriptor<Solution_> variableDescriptor;
-    protected final SingletonInverseVariableSupply inverseVariableSupply;
     protected final Object toPlanningValue;
+
+    protected final Object oldTrailingLastEntity;
+    protected final Object newTrailingEntity;
 
     public SubChainReversingChangeMove(SubChain subChain, GenuineVariableDescriptor<Solution_> variableDescriptor,
             SingletonInverseVariableSupply inverseVariableSupply, Object toPlanningValue) {
         this.subChain = subChain;
         this.variableDescriptor = variableDescriptor;
-        this.inverseVariableSupply = inverseVariableSupply;
         this.toPlanningValue = toPlanningValue;
+        oldTrailingLastEntity = inverseVariableSupply.getInverseSingleton(subChain.getLastEntity());
+        newTrailingEntity = toPlanningValue == null ? null
+                : inverseVariableSupply.getInverseSingleton(toPlanningValue);
+    }
+
+    public SubChainReversingChangeMove(SubChain subChain, GenuineVariableDescriptor<Solution_> variableDescriptor,
+            Object toPlanningValue, Object oldTrailingLastEntity, Object newTrailingEntity) {
+        this.subChain = subChain;
+        this.variableDescriptor = variableDescriptor;
+        this.toPlanningValue = toPlanningValue;
+        this.oldTrailingLastEntity = oldTrailingLastEntity;
+        this.newTrailingEntity = newTrailingEntity;
     }
 
     public String getVariableName() {
@@ -75,7 +87,14 @@ public class SubChainReversingChangeMove<Solution_> extends AbstractMove<Solutio
     @Override
     public SubChainReversingChangeMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
         Object oldFirstValue = variableDescriptor.getValue(subChain.getFirstEntity());
-        return new SubChainReversingChangeMove<>(subChain.reverse(), variableDescriptor, inverseVariableSupply, oldFirstValue);
+        boolean unmovedReverse = toPlanningValue == oldFirstValue;
+        if (!unmovedReverse) {
+            return new SubChainReversingChangeMove<>(subChain.reverse(), variableDescriptor, oldFirstValue,
+                    newTrailingEntity, oldTrailingLastEntity);
+        } else {
+            return new SubChainReversingChangeMove<>(subChain.reverse(), variableDescriptor, oldFirstValue,
+                    oldTrailingLastEntity, newTrailingEntity);
+        }
     }
 
     @Override
@@ -83,40 +102,48 @@ public class SubChainReversingChangeMove<Solution_> extends AbstractMove<Solutio
         Object firstEntity = subChain.getFirstEntity();
         Object lastEntity = subChain.getLastEntity();
         Object oldFirstValue = variableDescriptor.getValue(firstEntity);
-        Object oldTrailingLastEntity = inverseVariableSupply.getInverseSingleton(lastEntity);
-        Object newTrailingEntity = toPlanningValue == null ? null
-                : inverseVariableSupply.getInverseSingleton(toPlanningValue);
-        boolean unmovedReverse = newTrailingEntity == firstEntity;
+        boolean unmovedReverse = toPlanningValue == oldFirstValue;
         // Close the old chain
+        InnerScoreDirector<Solution_, ?> innerScoreDirector = (InnerScoreDirector<Solution_, ?>) scoreDirector;
         if (!unmovedReverse) {
             if (oldTrailingLastEntity != null) {
-                scoreDirector.changeVariableFacade(variableDescriptor, oldTrailingLastEntity, oldFirstValue);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, oldTrailingLastEntity, oldFirstValue);
             }
         }
         Object lastEntityValue = variableDescriptor.getValue(lastEntity);
         // Change the entity
-        scoreDirector.changeVariableFacade(variableDescriptor, lastEntity, toPlanningValue);
+        innerScoreDirector.changeVariableFacade(variableDescriptor, lastEntity, toPlanningValue);
         // Reverse the chain
-        reverseChain(scoreDirector, lastEntity, lastEntityValue, firstEntity);
+        reverseChain(innerScoreDirector, lastEntity, lastEntityValue, firstEntity);
         // Reroute the new chain
         if (!unmovedReverse) {
             if (newTrailingEntity != null) {
-                scoreDirector.changeVariableFacade(variableDescriptor, newTrailingEntity, firstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, newTrailingEntity, firstEntity);
             }
         } else {
             if (oldTrailingLastEntity != null) {
-                scoreDirector.changeVariableFacade(variableDescriptor, oldTrailingLastEntity, firstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, oldTrailingLastEntity, firstEntity);
             }
         }
     }
 
-    private void reverseChain(ScoreDirector<Solution_> scoreDirector, Object entity, Object previous, Object toEntity) {
+    private void reverseChain(InnerScoreDirector<Solution_, ?> scoreDirector, Object entity, Object previous,
+            Object toEntity) {
         while (entity != toEntity) {
             Object value = variableDescriptor.getValue(previous);
             scoreDirector.changeVariableFacade(variableDescriptor, previous, entity);
             entity = previous;
             previous = value;
         }
+    }
+
+    @Override
+    public SubChainReversingChangeMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new SubChainReversingChangeMove<>(subChain.rebase(destinationScoreDirector),
+                variableDescriptor,
+                destinationScoreDirector.lookUpWorkingObject(toPlanningValue),
+                destinationScoreDirector.lookUpWorkingObject(oldTrailingLastEntity),
+                destinationScoreDirector.lookUpWorkingObject(newTrailingEntity));
     }
 
     // ************************************************************************
@@ -142,26 +169,19 @@ public class SubChainReversingChangeMove<Solution_> extends AbstractMove<Solutio
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof SubChainReversingChangeMove) {
-            SubChainReversingChangeMove<?> other = (SubChainReversingChangeMove) o;
-            return new EqualsBuilder()
-                    .append(subChain, other.subChain)
-                    .append(variableDescriptor.getVariableName(),
-                            other.variableDescriptor.getVariableName())
-                    .append(toPlanningValue, other.toPlanningValue)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final SubChainReversingChangeMove<?> other = (SubChainReversingChangeMove<?>) o;
+        return Objects.equals(subChain, other.subChain) &&
+                Objects.equals(variableDescriptor.getVariableName(), other.variableDescriptor.getVariableName()) &&
+                Objects.equals(toPlanningValue, other.toPlanningValue);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(subChain)
-                .append(variableDescriptor.getVariableName())
-                .append(toPlanningValue)
-                .toHashCode();
+        return Objects.hash(subChain, variableDescriptor.getVariableName(), toPlanningValue);
     }
 
     @Override

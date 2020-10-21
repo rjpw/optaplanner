@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@ package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 import java.util.Collections;
 import java.util.Iterator;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionFilter;
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
 /**
  * Prevents reassigning of already initialized variables during Construction Heuristics and Exhaustive Search.
@@ -35,14 +35,14 @@ import org.optaplanner.core.impl.score.director.ScoreDirector;
  * Does not implement {@link EntityIndependentValueSelector} because if used like that,
  * it shouldn't be added during configuration in the first place.
  */
-public class ReinitializeVariableValueSelector extends AbstractValueSelector {
+public class ReinitializeVariableValueSelector<Solution_> extends AbstractValueSelector<Solution_> {
 
-    protected final ValueSelector childValueSelector;
-    protected final SelectionFilter reinitializeVariableEntityFilter;
+    protected final ValueSelector<Solution_> childValueSelector;
+    protected final SelectionFilter<Solution_, Object> reinitializeVariableEntityFilter;
 
-    protected ScoreDirector scoreDirector = null;
+    protected ScoreDirector<Solution_> scoreDirector = null;
 
-    public ReinitializeVariableValueSelector(ValueSelector childValueSelector) {
+    public ReinitializeVariableValueSelector(ValueSelector<Solution_> childValueSelector) {
         this.childValueSelector = childValueSelector;
         this.reinitializeVariableEntityFilter = childValueSelector.getVariableDescriptor()
                 .getReinitializeVariableEntityFilter();
@@ -54,19 +54,19 @@ public class ReinitializeVariableValueSelector extends AbstractValueSelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
     @Override
-    public GenuineVariableDescriptor getVariableDescriptor() {
+    public GenuineVariableDescriptor<Solution_> getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 

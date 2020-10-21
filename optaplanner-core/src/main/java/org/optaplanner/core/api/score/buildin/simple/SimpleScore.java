@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.optaplanner.core.api.score.buildin.simple;
 
+import java.util.Objects;
+
 import org.optaplanner.core.api.score.AbstractScore;
 import org.optaplanner.core.api.score.Score;
 
@@ -23,24 +25,26 @@ import org.optaplanner.core.api.score.Score;
  * This {@link Score} is based on 1 level of int constraints.
  * <p>
  * This class is immutable.
+ *
  * @see Score
  */
 public final class SimpleScore extends AbstractScore<SimpleScore> {
 
     public static final SimpleScore ZERO = new SimpleScore(0, 0);
+    public static final SimpleScore ONE = new SimpleScore(0, 1);
 
     public static SimpleScore parseScore(String scoreString) {
         String[] scoreTokens = parseScoreTokens(SimpleScore.class, scoreString, "");
         int initScore = parseInitScore(SimpleScore.class, scoreString, scoreTokens[0]);
         int score = parseLevelAsInt(SimpleScore.class, scoreString, scoreTokens[1]);
-        return valueOfUninitialized(initScore, score);
+        return ofUninitialized(initScore, score);
     }
 
-    public static SimpleScore valueOfUninitialized(int initScore, int score) {
+    public static SimpleScore ofUninitialized(int initScore, int score) {
         return new SimpleScore(initScore, score);
     }
 
-    public static SimpleScore valueOf(int score) {
+    public static SimpleScore of(int score) {
         return new SimpleScore(0, score);
     }
 
@@ -70,6 +74,7 @@ public final class SimpleScore extends AbstractScore<SimpleScore> {
      * The total of the broken negative constraints and fulfilled positive constraints.
      * Their weight is included in the total.
      * The score is usually a negative number because most use cases only have negative constraints.
+     *
      * @return higher is better, usually negative, 0 if no constraints are broken/fulfilled
      */
     public int getScore() {
@@ -81,21 +86,15 @@ public final class SimpleScore extends AbstractScore<SimpleScore> {
     // ************************************************************************
 
     @Override
-    public SimpleScore toInitializedScore() {
-        return initScore == 0 ? this : new SimpleScore(0, score);
-    }
-
-    @Override
     public SimpleScore withInitScore(int newInitScore) {
-        assertNoInitScore();
         return new SimpleScore(newInitScore, score);
     }
 
     @Override
-    public SimpleScore add(SimpleScore augment) {
+    public SimpleScore add(SimpleScore addend) {
         return new SimpleScore(
-                initScore + augment.getInitScore(),
-                score + augment.getScore());
+                initScore + addend.getInitScore(),
+                score + addend.getScore());
     }
 
     @Override
@@ -132,13 +131,17 @@ public final class SimpleScore extends AbstractScore<SimpleScore> {
     }
 
     @Override
+    public boolean isFeasible() {
+        return initScore >= 0;
+    }
+
+    @Override
     public Number[] toLevelNumbers() {
-        return new Number[]{score};
+        return new Number[] { score };
     }
 
     @Override
     public boolean equals(Object o) {
-        // A direct implementation (instead of EqualsBuilder) to avoid dependencies
         if (this == o) {
             return true;
         } else if (o instanceof SimpleScore) {
@@ -152,17 +155,13 @@ public final class SimpleScore extends AbstractScore<SimpleScore> {
 
     @Override
     public int hashCode() {
-        // A direct implementation (instead of HashCodeBuilder) to avoid dependencies
-        return ((17 * 37)
-                + initScore) * 37
-                + score;
+        return Objects.hash(initScore, score);
     }
 
     @Override
     public int compareTo(SimpleScore other) {
-        // A direct implementation (instead of CompareToBuilder) to avoid dependencies
         if (initScore != other.getInitScore()) {
-            return initScore < other.getInitScore() ? -1 : 1;
+            return Integer.compare(initScore, other.getInitScore());
         } else {
             return Integer.compare(score, other.getScore());
         }
@@ -176,11 +175,6 @@ public final class SimpleScore extends AbstractScore<SimpleScore> {
     @Override
     public String toString() {
         return getInitPrefix() + score;
-    }
-
-    @Override
-    public boolean isCompatibleArithmeticArgument(Score otherScore) {
-        return otherScore instanceof SimpleScore;
     }
 
 }

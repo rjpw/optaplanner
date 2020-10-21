@@ -61,7 +61,8 @@ public class TravelingTournamentExporter extends AbstractTxtSolutionExporter<Tra
             }
             bufferedWriter.write("\n");
             for (Team team : solution.getTeamList()) {
-                bufferedWriter.write(String.format("%-" + (maximumTeamNameLength + 3) + "s", team.getName().replaceAll("[\\w\\d]", "-")));
+                bufferedWriter.write(
+                        String.format("%-" + (maximumTeamNameLength + 3) + "s", team.getName().replaceAll("[\\w\\d]", "-")));
             }
             bufferedWriter.write("\n");
             for (Day day : solution.getDayList()) {
@@ -80,8 +81,11 @@ public class TravelingTournamentExporter extends AbstractTxtSolutionExporter<Tra
                             }
                         }
                     }
-                    String opponentName = (opponentIsHome ? "@" : "") + opponentTeam.getName();
-                    bufferedWriter.write(String.format("%-" + (maximumTeamNameLength + 3) + "s", opponentName));
+
+                    if (opponentTeam != null) {
+                        String opponentName = (opponentIsHome ? "@" : "") + opponentTeam.getName();
+                        bufferedWriter.write(String.format("%-" + (maximumTeamNameLength + 3) + "s", opponentName));
+                    }
                 }
                 bufferedWriter.write("\n");
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package org.optaplanner.core.impl.heuristic.selector.common;
 
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public interface SelectionCacheLifecycleListener {
+public interface SelectionCacheLifecycleListener<Solution_> {
 
-    void constructCache(DefaultSolverScope solverScope);
+    void constructCache(SolverScope<Solution_> solverScope);
 
-    void disposeCache(DefaultSolverScope solverScope);
+    void disposeCache(SolverScope<Solution_> solverScope);
 
 }

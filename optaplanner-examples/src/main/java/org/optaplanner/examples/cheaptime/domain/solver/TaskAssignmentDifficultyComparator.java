@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,21 @@
 
 package org.optaplanner.examples.cheaptime.domain.solver;
 
-import java.io.Serializable;
 import java.util.Comparator;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.optaplanner.examples.cheaptime.domain.Task;
 import org.optaplanner.examples.cheaptime.domain.TaskAssignment;
 
-public class TaskAssignmentDifficultyComparator implements Comparator<TaskAssignment>, Serializable {
+public class TaskAssignmentDifficultyComparator implements Comparator<TaskAssignment> {
+
+    private static final Comparator<Task> TASK_COMPARATOR = Comparator.comparingInt(Task::getResourceUsageMultiplicand)
+            .thenComparingLong(Task::getPowerConsumptionMicros)
+            .thenComparingInt(Task::getDuration);
+    private static final Comparator<TaskAssignment> COMPARATOR = Comparator.comparing(TaskAssignment::getTask, TASK_COMPARATOR)
+            .thenComparingLong(TaskAssignment::getId);
 
     @Override
     public int compare(TaskAssignment a, TaskAssignment b) {
-        Task aTask = a.getTask();
-        Task bTask = b.getTask();
-        return new CompareToBuilder()
-                .append(aTask.getResourceUsageMultiplicand(), bTask.getResourceUsageMultiplicand())
-                .append(aTask.getPowerConsumptionMicros(), bTask.getPowerConsumptionMicros())
-                .append(aTask.getDuration(), bTask.getDuration())
-                .append(a.getId(), b.getId())
-                .toComparison();
+        return COMPARATOR.compare(a, b);
     }
-
 }

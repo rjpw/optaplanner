@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,18 @@ package org.optaplanner.core.impl.domain.variable.supply;
 /**
  * Provides a {@link Supply} for subsystems that submit a {@link Demand}.
  */
-public interface SupplyManager {
+public interface SupplyManager<Solution_> {
 
     /**
-     * Returns the {@link Supply} for a {@link Demand}, preferably an existing one.
-     * If the {@link Supply} doesn't exist yet (as part of the domain model or externalized), it creates and attaches it.
+     * Returns the {@link org.optaplanner.core.impl.domain.variable.supply.Supply} for a {@link Demand}, preferably an existing
+     * one.
+     * If the {@link org.optaplanner.core.impl.domain.variable.supply.Supply} doesn't exist yet (as part of the domain model or
+     * externalized), it creates and attaches it.
+     *
      * @param demand never null
-     * @param <S> Subclass of {@link Supply}
+     * @param <Supply_> Subclass of {@link org.optaplanner.core.impl.domain.variable.supply.Supply}
      * @return never null
      */
-    <S extends Supply> S demand(Demand<S> demand);
+    <Supply_ extends Supply> Supply_ demand(Demand<Solution_, Supply_> demand);
 
 }

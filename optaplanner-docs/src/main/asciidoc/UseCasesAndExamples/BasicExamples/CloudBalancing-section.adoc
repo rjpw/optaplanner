@@ -1,5 +1,0 @@
-[[cloudBalancing]]
-= Cloud Balancing
-
-This example is explained in <<cloudBalancingTutorial,a tutorial>>.
-

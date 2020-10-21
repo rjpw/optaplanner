@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 
 package org.optaplanner.core.impl.domain.variable.listener.support;
 
+import java.util.Objects;
+
+import org.optaplanner.core.api.domain.variable.VariableListener;
 import org.optaplanner.core.impl.domain.variable.descriptor.ShadowVariableDescriptor;
-import org.optaplanner.core.impl.domain.variable.listener.VariableListener;
 
 public class VariableListenerNotification {
 
@@ -40,12 +42,12 @@ public class VariableListenerNotification {
     /**
      * Warning: do not test equality of {@link VariableListenerNotification}s for different {@link VariableListener}s
      * (so {@link ShadowVariableDescriptor}s) because equality does not take those into account (for performance)!
+     *
      * @param o sometimes null
      * @return true if same entity instance and the same type
      */
     @Override
     public boolean equals(Object o) {
-        // A direct implementation (instead of EqualsBuilder) to avoid dependencies
         if (this == o) {
             return true;
         } else if (o instanceof VariableListenerNotification) {
@@ -58,8 +60,7 @@ public class VariableListenerNotification {
 
     @Override
     public int hashCode() {
-        // A direct implementation (instead of HashCodeBuilder) to avoid dependencies
-        return (((17 * 37) + System.identityHashCode(entity))) * 37 + type.hashCode();
+        return Objects.hash(System.identityHashCode(entity), type);
     }
 
 }

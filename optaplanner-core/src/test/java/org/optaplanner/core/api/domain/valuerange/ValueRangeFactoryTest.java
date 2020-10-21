@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,28 @@
 
 package org.optaplanner.core.api.domain.valuerange;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Arrays;
 
-import org.junit.Test;
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.api.solver.SolverFactory;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.config.solver.SolverConfig;
 import org.optaplanner.core.impl.testdata.domain.valuerange.TestdataValueRangeEntity;
 import org.optaplanner.core.impl.testdata.domain.valuerange.TestdataValueRangeSolution;
 import org.optaplanner.core.impl.testdata.util.PlannerTestUtils;
-
-import static org.junit.Assert.*;
 
 public class ValueRangeFactoryTest {
 
     @Test
     public void solve() {
-        SolverFactory<TestdataValueRangeSolution> solverFactory = PlannerTestUtils.buildSolverFactory(
+        SolverConfig solverConfig = PlannerTestUtils.buildSolverConfig(
                 TestdataValueRangeSolution.class, TestdataValueRangeEntity.class);
-        Solver<TestdataValueRangeSolution> solver = solverFactory.buildSolver();
 
         TestdataValueRangeSolution solution = new TestdataValueRangeSolution("s1");
         solution.setEntityList(Arrays.asList(new TestdataValueRangeEntity("e1"), new TestdataValueRangeEntity("e2")));
 
-        solution = solver.solve(solution);
-        assertNotNull(solution);
+        solution = PlannerTestUtils.solve(solverConfig, solution);
+        assertThat(solution).isNotNull();
     }
 
 }

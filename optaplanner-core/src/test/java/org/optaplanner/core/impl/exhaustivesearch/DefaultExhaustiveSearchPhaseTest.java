@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,22 @@
 
 package org.optaplanner.core.impl.exhaustivesearch;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertCode;
+
 import java.util.Arrays;
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.api.solver.SolverFactory;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.config.exhaustivesearch.ExhaustiveSearchPhaseConfig;
+import org.optaplanner.core.config.solver.SolverConfig;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.exhaustivesearch.decider.ExhaustiveSearchDecider;
 import org.optaplanner.core.impl.exhaustivesearch.node.ExhaustiveSearchLayer;
@@ -32,20 +40,13 @@ import org.optaplanner.core.impl.exhaustivesearch.scope.ExhaustiveSearchPhaseSco
 import org.optaplanner.core.impl.exhaustivesearch.scope.ExhaustiveSearchStepScope;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
 import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
-import org.optaplanner.core.impl.testdata.domain.immovable.TestdataImmovableEntity;
-import org.optaplanner.core.impl.testdata.domain.immovable.TestdataImmovableSolution;
-import org.optaplanner.core.impl.testdata.domain.reinitialize.TestdataReinitializeEntity;
-import org.optaplanner.core.impl.testdata.domain.reinitialize.TestdataReinitializeSolution;
+import org.optaplanner.core.impl.testdata.domain.pinned.TestdataPinnedEntity;
+import org.optaplanner.core.impl.testdata.domain.pinned.TestdataPinnedSolution;
 import org.optaplanner.core.impl.testdata.util.PlannerTestUtils;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
 
 public class DefaultExhaustiveSearchPhaseTest {
 
@@ -58,6 +59,8 @@ public class DefaultExhaustiveSearchPhaseTest {
         when(stepScope.getPhaseScope()).thenReturn(phaseScope);
         TestdataSolution workingSolution = new TestdataSolution();
         when(phaseScope.getWorkingSolution()).thenReturn(workingSolution);
+        InnerScoreDirector<TestdataSolution, SimpleScore> scoreDirector = mock(InnerScoreDirector.class);
+        when(phaseScope.getScoreDirector()).thenReturn((InnerScoreDirector) scoreDirector);
 
         SolutionDescriptor<TestdataSolution> solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
         when(phaseScope.getSolutionDescriptor()).thenReturn(solutionDescriptor);
@@ -88,7 +91,7 @@ public class DefaultExhaustiveSearchPhaseTest {
         ExhaustiveSearchNode node4B = new ExhaustiveSearchNode(layer4, node3B); // newNode
         node4B.setMove(mock(Move.class));
         node4B.setUndoMove(mock(Move.class));
-        node4B.setScore(SimpleScore.valueOfUninitialized(-96, 7));
+        node4B.setScore(SimpleScore.ofUninitialized(-96, 7));
         when(lastCompletedStepScope.getExpandingNode()).thenReturn(node3A);
         when(stepScope.getExpandingNode()).thenReturn(node4B);
 
@@ -102,14 +105,14 @@ public class DefaultExhaustiveSearchPhaseTest {
         verify(node1.getMove(), times(0)).doMove(any(ScoreDirector.class));
         verify(node1.getUndoMove(), times(0)).doMove(any(ScoreDirector.class));
         verify(node2A.getMove(), times(0)).doMove(any(ScoreDirector.class));
-        verify(node2A.getUndoMove(), times(1)).doMove(any(ScoreDirector.class));
+        verify(node2A.getUndoMove(), times(1)).doMove(scoreDirector);
         verify(node3A.getMove(), times(0)).doMove(any(ScoreDirector.class));
-        verify(node3A.getUndoMove(), times(1)).doMove(any(ScoreDirector.class));
-        verify(node2B.getMove(), times(1)).doMove(any(ScoreDirector.class));
+        verify(node3A.getUndoMove(), times(1)).doMove(scoreDirector);
+        verify(node2B.getMove(), times(1)).doMove(scoreDirector);
         verify(node2B.getUndoMove(), times(0)).doMove(any(ScoreDirector.class));
-        verify(node3B.getMove(), times(1)).doMove(any(ScoreDirector.class));
+        verify(node3B.getMove(), times(1)).doMove(scoreDirector);
         verify(node3B.getUndoMove(), times(0)).doMove(any(ScoreDirector.class));
-        verify(node4B.getMove(), times(1)).doMove(any(ScoreDirector.class));
+        verify(node4B.getMove(), times(1)).doMove(scoreDirector);
         verify(node4B.getUndoMove(), times(0)).doMove(any(ScoreDirector.class));
         // TODO FIXME
         // verify(workingSolution).setScore(newScore);
@@ -117,11 +120,9 @@ public class DefaultExhaustiveSearchPhaseTest {
 
     @Test
     public void solveWithInitializedEntities() {
-        SolverFactory<TestdataSolution> solverFactory = PlannerTestUtils.buildSolverFactory(
-                TestdataSolution.class, TestdataEntity.class);
-        solverFactory.getSolverConfig().setPhaseConfigList(Collections.singletonList(
-                new ExhaustiveSearchPhaseConfig()));
-        Solver<TestdataSolution> solver = solverFactory.buildSolver();
+        SolverConfig solverConfig = PlannerTestUtils.buildSolverConfig(TestdataSolution.class,
+                TestdataEntity.class);
+        solverConfig.setPhaseConfigList(Collections.singletonList(new ExhaustiveSearchPhaseConfig()));
 
         TestdataSolution solution = new TestdataSolution("s1");
         TestdataValue v1 = new TestdataValue("v1");
@@ -133,59 +134,55 @@ public class DefaultExhaustiveSearchPhaseTest {
                 new TestdataEntity("e2", v2),
                 new TestdataEntity("e3", v1)));
 
-        solution = solver.solve(solution);
-        assertNotNull(solution);
+        solution = PlannerTestUtils.solve(solverConfig, solution);
+        assertThat(solution).isNotNull();
         TestdataEntity solvedE1 = solution.getEntityList().get(0);
         assertCode("e1", solvedE1);
-        assertNotNull(solvedE1.getValue());
+        assertThat(solvedE1.getValue()).isNotNull();
         TestdataEntity solvedE2 = solution.getEntityList().get(1);
         assertCode("e2", solvedE2);
-        assertEquals(v2, solvedE2.getValue());
+        assertThat(solvedE2.getValue()).isEqualTo(v2);
         TestdataEntity solvedE3 = solution.getEntityList().get(2);
         assertCode("e3", solvedE3);
-        assertEquals(v1, solvedE3.getValue());
-        assertEquals(0, solution.getScore().getInitScore());
+        assertThat(solvedE3.getValue()).isEqualTo(v1);
+        assertThat(solution.getScore().getInitScore()).isEqualTo(0);
     }
 
     @Test
-    public void solveWithImmovableEntities() {
-        SolverFactory<TestdataImmovableSolution> solverFactory = PlannerTestUtils.buildSolverFactory(
-                TestdataImmovableSolution.class, TestdataImmovableEntity.class);
-        solverFactory.getSolverConfig().setPhaseConfigList(Collections.singletonList(
-                new ExhaustiveSearchPhaseConfig()));
-        Solver<TestdataImmovableSolution> solver = solverFactory.buildSolver();
+    public void solveWithPinnedEntities() {
+        SolverConfig solverConfig =
+                PlannerTestUtils.buildSolverConfig(TestdataPinnedSolution.class, TestdataPinnedEntity.class);
+        solverConfig.setPhaseConfigList(Collections.singletonList(new ExhaustiveSearchPhaseConfig()));
 
-        TestdataImmovableSolution solution = new TestdataImmovableSolution("s1");
+        TestdataPinnedSolution solution = new TestdataPinnedSolution("s1");
         TestdataValue v1 = new TestdataValue("v1");
         TestdataValue v2 = new TestdataValue("v2");
         TestdataValue v3 = new TestdataValue("v3");
         solution.setValueList(Arrays.asList(v1, v2, v3));
         solution.setEntityList(Arrays.asList(
-                new TestdataImmovableEntity("e1", null, false, false),
-                new TestdataImmovableEntity("e2", v2, true, false),
-                new TestdataImmovableEntity("e3", null, false, true)));
+                new TestdataPinnedEntity("e1", null, false, false),
+                new TestdataPinnedEntity("e2", v2, true, false),
+                new TestdataPinnedEntity("e3", null, false, true)));
 
-        solution = solver.solve(solution);
-        assertNotNull(solution);
-        TestdataImmovableEntity solvedE1 = solution.getEntityList().get(0);
+        solution = PlannerTestUtils.solve(solverConfig, solution);
+        assertThat(solution).isNotNull();
+        TestdataPinnedEntity solvedE1 = solution.getEntityList().get(0);
         assertCode("e1", solvedE1);
-        assertNotNull(solvedE1.getValue());
-        TestdataImmovableEntity solvedE2 = solution.getEntityList().get(1);
+        assertThat(solvedE1.getValue()).isNotNull();
+        TestdataPinnedEntity solvedE2 = solution.getEntityList().get(1);
         assertCode("e2", solvedE2);
-        assertEquals(v2, solvedE2.getValue());
-        TestdataImmovableEntity solvedE3 = solution.getEntityList().get(2);
+        assertThat(solvedE2.getValue()).isEqualTo(v2);
+        TestdataPinnedEntity solvedE3 = solution.getEntityList().get(2);
         assertCode("e3", solvedE3);
-        assertEquals(null, solvedE3.getValue());
-        assertEquals(-1, solution.getScore().getInitScore());
+        assertThat(solvedE3.getValue()).isEqualTo(null);
+        assertThat(solution.getScore().getInitScore()).isEqualTo(-1);
     }
 
     @Test
     public void solveWithEmptyEntityList() {
-        SolverFactory<TestdataSolution> solverFactory = PlannerTestUtils.buildSolverFactory(
-                TestdataSolution.class, TestdataEntity.class);
-        solverFactory.getSolverConfig().setPhaseConfigList(Collections.singletonList(
-                new ExhaustiveSearchPhaseConfig()));
-        Solver<TestdataSolution> solver = solverFactory.buildSolver();
+        SolverConfig solverConfig =
+                PlannerTestUtils.buildSolverConfig(TestdataSolution.class, TestdataEntity.class);
+        solverConfig.setPhaseConfigList(Collections.singletonList(new ExhaustiveSearchPhaseConfig()));
 
         TestdataSolution solution = new TestdataSolution("s1");
         TestdataValue v1 = new TestdataValue("v1");
@@ -194,45 +191,9 @@ public class DefaultExhaustiveSearchPhaseTest {
         solution.setValueList(Arrays.asList(v1, v2, v3));
         solution.setEntityList(Collections.emptyList());
 
-        solution = solver.solve(solution);
-        assertNotNull(solution);
-        assertEquals(0, solution.getEntityList().size());
-    }
-
-    @Test
-    public void solveWithReinitializeVariable() {
-        SolverFactory<TestdataReinitializeSolution> solverFactory = PlannerTestUtils.buildSolverFactory(
-                TestdataReinitializeSolution.class, TestdataReinitializeEntity.class);
-        solverFactory.getSolverConfig().setPhaseConfigList(Collections.singletonList(
-                new ExhaustiveSearchPhaseConfig()));
-        Solver<TestdataReinitializeSolution> solver = solverFactory.buildSolver();
-
-        TestdataReinitializeSolution solution = new TestdataReinitializeSolution("s1");
-        TestdataValue v1 = new TestdataValue("v1");
-        TestdataValue v2 = new TestdataValue("v2");
-        TestdataValue v3 = new TestdataValue("v3");
-        solution.setValueList(Arrays.asList(v1, v2, v3));
-        solution.setEntityList(Arrays.asList(
-                new TestdataReinitializeEntity("e1", null, false),
-                new TestdataReinitializeEntity("e2", v2, false),
-                new TestdataReinitializeEntity("e3", v2, true),
-                new TestdataReinitializeEntity("e4", null, true)));
-
-        solution = solver.solve(solution);
-        assertNotNull(solution);
-        TestdataReinitializeEntity solvedE1 = solution.getEntityList().get(0);
-        assertCode("e1", solvedE1);
-        assertNotNull(solvedE1.getValue());
-        TestdataReinitializeEntity solvedE2 = solution.getEntityList().get(1);
-        assertCode("e2", solvedE2);
-        assertNotNull(solvedE2.getValue());
-        TestdataReinitializeEntity solvedE3 = solution.getEntityList().get(2);
-        assertCode("e3", solvedE3);
-        assertEquals(v2, solvedE3.getValue());
-        TestdataReinitializeEntity solvedE4 = solution.getEntityList().get(3);
-        assertCode("e4", solvedE4);
-        assertEquals(null, solvedE4.getValue());
-        assertEquals(-1, solution.getScore().getInitScore());
+        solution = PlannerTestUtils.solve(solverConfig, solution);
+        assertThat(solution).isNotNull();
+        assertThat(solution.getEntityList().size()).isEqualTo(0);
     }
 
 }

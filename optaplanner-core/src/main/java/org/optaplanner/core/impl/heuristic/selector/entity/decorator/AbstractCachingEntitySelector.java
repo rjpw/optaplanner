@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,16 +26,17 @@ import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecyc
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
 import org.optaplanner.core.impl.heuristic.selector.entity.AbstractEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public abstract class AbstractCachingEntitySelector extends AbstractEntitySelector implements SelectionCacheLifecycleListener {
+public abstract class AbstractCachingEntitySelector<Solution_> extends AbstractEntitySelector<Solution_>
+        implements SelectionCacheLifecycleListener<Solution_> {
 
-    protected final EntitySelector childEntitySelector;
+    protected final EntitySelector<Solution_> childEntitySelector;
     protected final SelectionCacheType cacheType;
 
     protected List<Object> cachedEntityList = null;
 
-    public AbstractCachingEntitySelector(EntitySelector childEntitySelector, SelectionCacheType cacheType) {
+    public AbstractCachingEntitySelector(EntitySelector<Solution_> childEntitySelector, SelectionCacheType cacheType) {
         this.childEntitySelector = childEntitySelector;
         this.cacheType = cacheType;
         if (childEntitySelector.isNeverEnding()) {
@@ -48,10 +49,10 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge<>(cacheType, this));
     }
 
-    public EntitySelector getChildEntitySelector() {
+    public EntitySelector<Solution_> getChildEntitySelector() {
         return childEntitySelector;
     }
 
@@ -65,7 +66,7 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         long childSize = childEntitySelector.getSize();
         if (childSize > (long) Integer.MAX_VALUE) {
             throw new IllegalStateException("The selector (" + this
@@ -80,12 +81,12 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
     }
 
     @Override
-    public void disposeCache(DefaultSolverScope solverScope) {
+    public void disposeCache(SolverScope<Solution_> solverScope) {
         cachedEntityList = null;
     }
 
     @Override
-    public EntityDescriptor getEntityDescriptor() {
+    public EntityDescriptor<Solution_> getEntityDescriptor() {
         return childEntitySelector.getEntityDescriptor();
     }
 

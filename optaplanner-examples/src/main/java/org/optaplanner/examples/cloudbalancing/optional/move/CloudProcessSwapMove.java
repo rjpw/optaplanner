@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
 import org.optaplanner.examples.cloudbalancing.domain.CloudComputer;
 import org.optaplanner.examples.cloudbalancing.domain.CloudProcess;
@@ -61,6 +59,17 @@ public class CloudProcessSwapMove extends AbstractMove<CloudBalance> {
     }
 
     @Override
+    public CloudProcessSwapMove rebase(ScoreDirector<CloudBalance> destinationScoreDirector) {
+        return new CloudProcessSwapMove(destinationScoreDirector.lookUpWorkingObject(leftCloudProcess),
+                destinationScoreDirector.lookUpWorkingObject(rightCloudProcess));
+    }
+
+    @Override
+    public String getSimpleMoveTypeDescription() {
+        return getClass().getSimpleName() + "(" + CloudProcess.class.getSimpleName() + ".computer)";
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Arrays.asList(leftCloudProcess, rightCloudProcess);
     }
@@ -74,28 +83,23 @@ public class CloudProcessSwapMove extends AbstractMove<CloudBalance> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof CloudProcessSwapMove) {
-            CloudProcessSwapMove other = (CloudProcessSwapMove) o;
-            return new EqualsBuilder()
-                    .append(leftCloudProcess, other.leftCloudProcess)
-                    .append(rightCloudProcess, other.rightCloudProcess)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final CloudProcessSwapMove other = (CloudProcessSwapMove) o;
+        return Objects.equals(leftCloudProcess, other.leftCloudProcess) &&
+                Objects.equals(rightCloudProcess, other.rightCloudProcess);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(leftCloudProcess)
-                .append(rightCloudProcess)
-                .toHashCode();
+        return Objects.hash(leftCloudProcess, rightCloudProcess);
     }
 
     @Override
     public String toString() {
-        return leftCloudProcess + " {" + leftCloudProcess.getComputer() +  "} <-> "
+        return leftCloudProcess + " {" + leftCloudProcess.getComputer() + "} <-> "
                 + rightCloudProcess + " {" + rightCloudProcess.getComputer() + "}";
     }
 

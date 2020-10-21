@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,14 @@ import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class SortingMoveSelector extends AbstractCachingMoveSelector {
+public class SortingMoveSelector<Solution_> extends AbstractCachingMoveSelector<Solution_> {
 
-    protected final SelectionSorter sorter;
+    protected final SelectionSorter<Solution_, Move<Solution_>> sorter;
 
-    public SortingMoveSelector(MoveSelector childMoveSelector, SelectionCacheType cacheType,
-            SelectionSorter sorter) {
+    public SortingMoveSelector(MoveSelector<Solution_> childMoveSelector, SelectionCacheType cacheType,
+            SelectionSorter<Solution_, Move<Solution_>> sorter) {
         super(childMoveSelector, cacheType);
         this.sorter = sorter;
     }
@@ -39,7 +39,7 @@ public class SortingMoveSelector extends AbstractCachingMoveSelector {
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         super.constructCache(solverScope);
         sorter.sort(solverScope.getScoreDirector(), cachedMoveList);
         logger.trace("    Sorted cachedMoveList: size ({}), moveSelector ({}).",
@@ -52,7 +52,7 @@ public class SortingMoveSelector extends AbstractCachingMoveSelector {
     }
 
     @Override
-    public Iterator<Move> iterator() {
+    public Iterator<Move<Solution_>> iterator() {
         return cachedMoveList.iterator();
     }
 

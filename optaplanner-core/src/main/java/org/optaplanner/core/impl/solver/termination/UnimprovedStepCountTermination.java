@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 package org.optaplanner.core.impl.solver.termination;
 
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
-public class UnimprovedStepCountTermination extends AbstractTermination {
+public class UnimprovedStepCountTermination<Solution_> extends AbstractTermination<Solution_> {
 
     private final int unimprovedStepCountLimit;
 
@@ -41,18 +41,18 @@ public class UnimprovedStepCountTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
         throw new UnsupportedOperationException(
                 getClass().getSimpleName() + " can only be used for phase termination.");
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
         int unimprovedStepCount = calculateUnimprovedStepCount(phaseScope);
         return unimprovedStepCount >= unimprovedStepCountLimit;
     }
 
-    protected int calculateUnimprovedStepCount(AbstractPhaseScope phaseScope) {
+    protected int calculateUnimprovedStepCount(AbstractPhaseScope<Solution_> phaseScope) {
         int bestStepIndex = phaseScope.getBestSolutionStepIndex();
         int lastStepIndex = phaseScope.getLastCompletedStepScope().getStepIndex();
         return lastStepIndex - bestStepIndex;
@@ -63,13 +63,13 @@ public class UnimprovedStepCountTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         throw new UnsupportedOperationException(
                 getClass().getSimpleName() + " can only be used for phase termination.");
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         int unimprovedStepCount = calculateUnimprovedStepCount(phaseScope);
         double timeGradient = ((double) unimprovedStepCount) / ((double) unimprovedStepCountLimit);
         return Math.min(timeGradient, 1.0);
@@ -80,9 +80,9 @@ public class UnimprovedStepCountTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public UnimprovedStepCountTermination createChildThreadTermination(
-            DefaultSolverScope solverScope, ChildThreadType childThreadType) {
-        return new UnimprovedStepCountTermination(unimprovedStepCountLimit);
+    public UnimprovedStepCountTermination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
+        return new UnimprovedStepCountTermination<>(unimprovedStepCountLimit);
     }
 
     @Override

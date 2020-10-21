@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@ import org.optaplanner.core.impl.localsearch.scope.LocalSearchPhaseScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
 import org.optaplanner.core.impl.phase.AbstractPhase;
 import org.optaplanner.core.impl.solver.recaller.BestSolutionRecaller;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.solver.termination.Termination;
 
 /**
  * Default implementation of {@link LocalSearchPhase}.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
 public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_> implements LocalSearchPhase<Solution_>,
@@ -37,7 +38,7 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
     protected LocalSearchDecider<Solution_> decider;
 
     public DefaultLocalSearchPhase(int phaseIndex, String logIndentation,
-            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination termination) {
+            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination<Solution_> termination) {
         super(phaseIndex, logIndentation, bestSolutionRecaller, termination);
     }
 
@@ -59,7 +60,7 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
     // ************************************************************************
 
     @Override
-    public void solve(DefaultSolverScope<Solution_> solverScope) {
+    public void solve(SolverScope<Solution_> solverScope) {
         LocalSearchPhaseScope<Solution_> phaseScope = new LocalSearchPhaseScope<>(solverScope);
         phaseStarted(phaseScope);
 
@@ -97,14 +98,15 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
     }
 
     protected void doStep(LocalSearchStepScope<Solution_> stepScope) {
-        Move<Solution_> nextStep = stepScope.getStep();
-        nextStep.doMove(stepScope.getScoreDirector());
-        predictWorkingStepScore(stepScope, nextStep);
+        Move<Solution_> step = stepScope.getStep();
+        Move<Solution_> undoStep = step.doMove(stepScope.getScoreDirector());
+        stepScope.setUndoStep(undoStep);
+        predictWorkingStepScore(stepScope, step);
         bestSolutionRecaller.processWorkingSolutionDuringStep(stepScope);
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
         decider.solvingStarted(solverScope);
     }
@@ -127,7 +129,7 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
     public void stepEnded(LocalSearchStepScope<Solution_> stepScope) {
         super.stepEnded(stepScope);
         decider.stepEnded(stepScope);
-        LocalSearchPhaseScope phaseScope = stepScope.getPhaseScope();
+        LocalSearchPhaseScope<Solution_> phaseScope = stepScope.getPhaseScope();
         if (logger.isDebugEnabled()) {
             logger.debug("{}    LS step ({}), time spent ({}), score ({}), {} best score ({})," +
                     " accepted/selected move count ({}/{}), picked move ({}).",
@@ -148,7 +150,7 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
         decider.phaseEnded(phaseScope);
         phaseScope.endingNow();
         logger.info("{}Local Search phase ({}) ended: time spent ({}), best score ({}),"
-                        + " score calculation speed ({}/sec), step total ({}).",
+                + " score calculation speed ({}/sec), step total ({}).",
                 logIndentation,
                 phaseIndex,
                 phaseScope.calculateSolverTimeMillisSpentUpToNow(),
@@ -158,7 +160,7 @@ public class DefaultLocalSearchPhase<Solution_> extends AbstractPhase<Solution_>
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         decider.solvingEnded(solverScope);
     }

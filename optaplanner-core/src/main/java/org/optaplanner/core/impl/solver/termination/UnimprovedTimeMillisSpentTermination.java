@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,29 @@
 
 package org.optaplanner.core.impl.solver.termination;
 
-import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import java.time.Clock;
 
-public class UnimprovedTimeMillisSpentTermination extends AbstractTermination {
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
+
+public class UnimprovedTimeMillisSpentTermination<Solution_> extends AbstractTermination<Solution_> {
 
     private final long unimprovedTimeMillisSpentLimit;
 
+    private final Clock clock;
+
     public UnimprovedTimeMillisSpentTermination(long unimprovedTimeMillisSpentLimit) {
+        this(unimprovedTimeMillisSpentLimit, Clock.systemUTC());
+    }
+
+    protected UnimprovedTimeMillisSpentTermination(long unimprovedTimeMillisSpentLimit, Clock clock) {
         this.unimprovedTimeMillisSpentLimit = unimprovedTimeMillisSpentLimit;
-        if (unimprovedTimeMillisSpentLimit <= 0L) {
+        if (unimprovedTimeMillisSpentLimit < 0L) {
             throw new IllegalArgumentException("The unimprovedTimeMillisSpentLimit (" + unimprovedTimeMillisSpentLimit
                     + ") cannot be negative.");
         }
+        this.clock = clock;
     }
 
     public long getUnimprovedTimeMillisSpentLimit() {
@@ -41,19 +50,19 @@ public class UnimprovedTimeMillisSpentTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
         long bestSolutionTimeMillis = solverScope.getBestSolutionTimeMillis();
         return isTerminated(bestSolutionTimeMillis);
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
         long bestSolutionTimeMillis = phaseScope.getPhaseBestSolutionTimeMillis();
         return isTerminated(bestSolutionTimeMillis);
     }
 
     protected boolean isTerminated(long bestSolutionTimeMillis) {
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         long unimprovedTimeMillisSpent = now - bestSolutionTimeMillis;
         return unimprovedTimeMillisSpent >= unimprovedTimeMillisSpentLimit;
     }
@@ -63,19 +72,19 @@ public class UnimprovedTimeMillisSpentTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         long bestSolutionTimeMillis = solverScope.getBestSolutionTimeMillis();
         return calculateTimeGradient(bestSolutionTimeMillis);
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         long bestSolutionTimeMillis = phaseScope.getPhaseBestSolutionTimeMillis();
         return calculateTimeGradient(bestSolutionTimeMillis);
     }
 
     protected double calculateTimeGradient(long bestSolutionTimeMillis) {
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         long unimprovedTimeMillisSpent = now - bestSolutionTimeMillis;
         double timeGradient = ((double) unimprovedTimeMillisSpent) / ((double) unimprovedTimeMillisSpentLimit);
         return Math.min(timeGradient, 1.0);
@@ -86,14 +95,13 @@ public class UnimprovedTimeMillisSpentTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public UnimprovedTimeMillisSpentTermination createChildThreadTermination(
-            DefaultSolverScope solverScope, ChildThreadType childThreadType) {
-        return new UnimprovedTimeMillisSpentTermination(unimprovedTimeMillisSpentLimit);
+    public UnimprovedTimeMillisSpentTermination<Solution_> createChildThreadTermination(
+            SolverScope<Solution_> solverScope, ChildThreadType childThreadType) {
+        return new UnimprovedTimeMillisSpentTermination<>(unimprovedTimeMillisSpentLimit);
     }
 
     @Override
     public String toString() {
         return "UnimprovedTimeMillisSpent(" + unimprovedTimeMillisSpentLimit + ")";
     }
-
 }

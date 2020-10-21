@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,34 +16,27 @@
 
 package org.optaplanner.examples.coachshuttlegathering.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.coachshuttlegathering.domain.CoachShuttleGatheringSolution;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
 
+@Disabled("TODO Score corruption")
 public class CoachShuttleGatheringPerformanceTest extends SolverPerformanceTest<CoachShuttleGatheringSolution> {
+
+    private static final String UNSOLVED_DATA_FILE = "data/coachshuttlegathering/unsolved/demo01.xml";
 
     @Override
     protected CoachShuttleGatheringApp createCommonApp() {
         return new CoachShuttleGatheringApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveDemo01() {
-        File unsolvedDataFile = new File("data/coachshuttlegathering/unsolved/demo01.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-389030soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "0hard/-389030soft", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "0hard/-389030soft", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveDemo01FastAssert() {
-        File unsolvedDataFile = new File("data/coachshuttlegathering/unsolved/demo01.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-389030soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

@@ -22,9 +22,14 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+import org.optaplanner.core.api.solver.SolverFactory;
 import org.optaplanner.core.impl.domain.common.ReflectionHelper;
 
 public class MemberAccessorFactory {
+
+    // exists only so that the various member accessors can share the same text in their exception messages
+    static final String CLASSLOADER_NUDGE_MESSAGE = "Maybe add getClass().getClassLoader() as a parameter to the " +
+            SolverFactory.class.getSimpleName() + ".create...() method call.";
 
     public static MemberAccessor buildMemberAccessor(Member member, MemberAccessorType memberAccessorType,
             Class<? extends Annotation> annotationClass) {
@@ -41,16 +46,18 @@ public class MemberAccessorFactory {
                         memberAccessor = new ReflectionMethodMemberAccessor(method);
                         break;
                     }
+                    // Intentionally fall through (no break)
                 case FIELD_OR_GETTER_METHOD:
                 case FIELD_OR_GETTER_METHOD_WITH_SETTER:
+                    boolean getterOnly = memberAccessorType != MemberAccessorType.FIELD_OR_GETTER_METHOD_WITH_SETTER;
                     ReflectionHelper.assertGetterMethod(method, annotationClass);
                     if (Modifier.isPublic(method.getModifiers())
                             // HACK The lambda approach doesn't support classes from another classloader (such as loaded by KieContainer) in JDK 8
                             // TODO In JDK 9 use MethodHandles.privateLookupIn(Class, MethodHandles.lookup())
                             && method.getDeclaringClass().getClassLoader().equals(MemberAccessor.class.getClassLoader())) {
-                        memberAccessor = new LambdaBeanPropertyMemberAccessor(method);
+                        memberAccessor = new LambdaBeanPropertyMemberAccessor(method, getterOnly);
                     } else {
-                        memberAccessor = new ReflectionBeanPropertyMemberAccessor(method);
+                        memberAccessor = new ReflectionBeanPropertyMemberAccessor(method, getterOnly);
                     }
                     break;
                 default:

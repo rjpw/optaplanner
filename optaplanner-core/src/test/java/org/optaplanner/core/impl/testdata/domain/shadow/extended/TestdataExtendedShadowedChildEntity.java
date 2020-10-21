@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,17 +19,18 @@ package org.optaplanner.core.impl.testdata.domain.shadow.extended;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.CustomShadowVariable;
 import org.optaplanner.core.api.domain.variable.PlanningVariableReference;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
-import org.optaplanner.core.impl.domain.variable.listener.VariableListenerAdapter;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.testdata.domain.DummyVariableListener;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningEntity
 public class TestdataExtendedShadowedChildEntity extends TestdataExtendedShadowedParentEntity {
 
-    public static EntityDescriptor buildEntityDescriptor() {
-        SolutionDescriptor solutionDescriptor = TestdataExtendedShadowedSolution.buildSolutionDescriptor();
+    public static EntityDescriptor<TestdataExtendedShadowedSolution> buildEntityDescriptor() {
+        SolutionDescriptor<TestdataExtendedShadowedSolution> solutionDescriptor =
+                TestdataExtendedShadowedSolution.buildSolutionDescriptor();
         return solutionDescriptor.findEntityDescriptorOrFail(TestdataExtendedShadowedChildEntity.class);
     }
 
@@ -46,8 +47,8 @@ public class TestdataExtendedShadowedChildEntity extends TestdataExtendedShadowe
         super(code, value);
     }
 
-    @CustomShadowVariable(variableListenerClass = SecondShadowUpdatingVariableListener.class,
-            sources = {@PlanningVariableReference(variableName = "firstShadow")})
+    @CustomShadowVariable(variableListenerClass = SecondShadowUpdatingVariableListener.class, sources = {
+            @PlanningVariableReference(variableName = "firstShadow") })
     public String getSecondShadow() {
         return secondShadow;
     }
@@ -64,19 +65,23 @@ public class TestdataExtendedShadowedChildEntity extends TestdataExtendedShadowe
     // Static inner classes
     // ************************************************************************
 
-    public static class SecondShadowUpdatingVariableListener extends VariableListenerAdapter<TestdataExtendedShadowedParentEntity> {
+    public static class SecondShadowUpdatingVariableListener
+            extends DummyVariableListener<TestdataExtendedShadowedSolution, TestdataExtendedShadowedParentEntity> {
 
         @Override
-        public void afterEntityAdded(ScoreDirector scoreDirector, TestdataExtendedShadowedParentEntity entity) {
+        public void afterEntityAdded(ScoreDirector<TestdataExtendedShadowedSolution> scoreDirector,
+                TestdataExtendedShadowedParentEntity entity) {
             updateShadow(scoreDirector, entity);
         }
 
         @Override
-        public void afterVariableChanged(ScoreDirector scoreDirector, TestdataExtendedShadowedParentEntity entity) {
+        public void afterVariableChanged(ScoreDirector<TestdataExtendedShadowedSolution> scoreDirector,
+                TestdataExtendedShadowedParentEntity entity) {
             updateShadow(scoreDirector, entity);
         }
 
-        private void updateShadow(ScoreDirector scoreDirector, TestdataExtendedShadowedParentEntity entity) {
+        private void updateShadow(ScoreDirector<TestdataExtendedShadowedSolution> scoreDirector,
+                TestdataExtendedShadowedParentEntity entity) {
             String firstShadow = entity.getFirstShadow();
             if (entity instanceof TestdataExtendedShadowedChildEntity) {
                 TestdataExtendedShadowedChildEntity childEntity = (TestdataExtendedShadowedChildEntity) entity;

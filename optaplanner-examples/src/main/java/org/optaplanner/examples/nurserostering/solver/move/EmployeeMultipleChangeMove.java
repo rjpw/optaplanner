@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 import org.optaplanner.examples.nurserostering.domain.NurseRoster;
 import org.optaplanner.examples.nurserostering.domain.ShiftAssignment;
@@ -57,10 +55,17 @@ public class EmployeeMultipleChangeMove extends AbstractMove<NurseRoster> {
         for (ShiftAssignment shiftAssignment : shiftAssignmentList) {
             if (!shiftAssignment.getEmployee().equals(fromEmployee)) {
                 throw new IllegalStateException("The shiftAssignment (" + shiftAssignment + ") should have the same employee ("
-                        + fromEmployee + ") as the fromEmployee (" + fromEmployee + ").");
+                        + shiftAssignment.getEmployee() + ") as the fromEmployee (" + fromEmployee + ").");
             }
             NurseRosteringMoveHelper.moveEmployee(scoreDirector, shiftAssignment, toEmployee);
         }
+    }
+
+    @Override
+    public EmployeeMultipleChangeMove rebase(ScoreDirector<NurseRoster> destinationScoreDirector) {
+        return new EmployeeMultipleChangeMove(destinationScoreDirector.lookUpWorkingObject(fromEmployee),
+                rebaseList(shiftAssignmentList, destinationScoreDirector),
+                destinationScoreDirector.lookUpWorkingObject(toEmployee));
     }
 
     @Override
@@ -77,25 +82,19 @@ public class EmployeeMultipleChangeMove extends AbstractMove<NurseRoster> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof EmployeeMultipleChangeMove) {
-            EmployeeMultipleChangeMove other = (EmployeeMultipleChangeMove) o;
-            return new EqualsBuilder()
-                    .append(fromEmployee, other.fromEmployee)
-                    .append(shiftAssignmentList, other.shiftAssignmentList)
-                    .append(toEmployee, other.toEmployee)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final EmployeeMultipleChangeMove other = (EmployeeMultipleChangeMove) o;
+        return Objects.equals(fromEmployee, other.fromEmployee) &&
+                Objects.equals(shiftAssignmentList, other.shiftAssignmentList) &&
+                Objects.equals(toEmployee, other.toEmployee);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(fromEmployee)
-                .append(shiftAssignmentList)
-                .append(toEmployee)
-                .toHashCode();
+        return Objects.hash(fromEmployee, shiftAssignmentList, toEmployee);
     }
 
     @Override

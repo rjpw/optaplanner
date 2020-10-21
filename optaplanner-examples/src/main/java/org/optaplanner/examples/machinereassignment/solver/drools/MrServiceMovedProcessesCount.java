@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,19 @@
 
 package org.optaplanner.examples.machinereassignment.solver.drools;
 
-import java.io.Serializable;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingLong;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.optaplanner.core.api.score.constraint.ConstraintMatch;
+import java.util.Comparator;
+import java.util.Objects;
+
 import org.optaplanner.examples.machinereassignment.domain.MrService;
 
-public class MrServiceMovedProcessesCount implements Serializable, Comparable<MrServiceMovedProcessesCount> {
+public class MrServiceMovedProcessesCount implements Comparable<MrServiceMovedProcessesCount> {
 
+    private static final Comparator<MrServiceMovedProcessesCount> COMPARATOR = comparing(
+            (MrServiceMovedProcessesCount count) -> count.service, comparingLong(MrService::getId))
+                    .thenComparingInt(count -> count.movedProcessesCount);
     private MrService service;
     private int movedProcessesCount;
 
@@ -46,37 +49,18 @@ public class MrServiceMovedProcessesCount implements Serializable, Comparable<Mr
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof MrServiceMovedProcessesCount) {
-            MrServiceMovedProcessesCount other = (MrServiceMovedProcessesCount) o;
-            return new EqualsBuilder()
-                    .append(service, other.service)
-                    .append(movedProcessesCount, other.movedProcessesCount)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final MrServiceMovedProcessesCount other = (MrServiceMovedProcessesCount) o;
+        return Objects.equals(service, other.service) &&
+                movedProcessesCount == other.movedProcessesCount;
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(service)
-                .append(movedProcessesCount)
-                .toHashCode();
-    }
-
-    /**
-     * Used by the GUI to sort the {@link ConstraintMatch} list
-     * by {@link ConstraintMatch#getJustificationList()}.
-     * @param other never null
-     * @return comparison
-     */
-    @Override
-    public int compareTo(MrServiceMovedProcessesCount other) {
-        return new CompareToBuilder()
-                .append(service, other.service)
-                .append(movedProcessesCount, other.movedProcessesCount)
-                .toComparison();
+        return Objects.hash(service, movedProcessesCount);
     }
 
     public Long getServiceId() {
@@ -88,4 +72,8 @@ public class MrServiceMovedProcessesCount implements Serializable, Comparable<Mr
         return service + "=" + movedProcessesCount;
     }
 
+    @Override
+    public int compareTo(MrServiceMovedProcessesCount o) {
+        return COMPARATOR.compare(this, o);
+    }
 }

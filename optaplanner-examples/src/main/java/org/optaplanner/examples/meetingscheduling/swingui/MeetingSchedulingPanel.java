@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,25 @@
 
 package org.optaplanner.examples.meetingscheduling.swingui;
 
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderColumnKey.HEADER_COLUMN;
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderColumnKey.HEADER_COLUMN_GROUP1;
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderRowKey.HEADER_ROW;
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderRowKey.HEADER_ROW_GROUP1;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -33,7 +43,9 @@ import javax.swing.JTabbedPane;
 import javax.swing.SwingConstants;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.optaplanner.examples.common.swingui.CommonIcons;
 import org.optaplanner.examples.common.swingui.SolutionPanel;
+import org.optaplanner.examples.common.swingui.components.LabeledComboBoxRenderer;
 import org.optaplanner.examples.common.swingui.timetable.TimeTablePanel;
 import org.optaplanner.examples.meetingscheduling.domain.Day;
 import org.optaplanner.examples.meetingscheduling.domain.MeetingAssignment;
@@ -45,10 +57,6 @@ import org.optaplanner.examples.meetingscheduling.domain.Room;
 import org.optaplanner.examples.meetingscheduling.domain.TimeGrain;
 import org.optaplanner.swing.impl.SwingUtils;
 import org.optaplanner.swing.impl.TangoColorFactory;
-
-import static org.apache.commons.lang3.ObjectUtils.*;
-import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderColumnKey.*;
-import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderRowKey.*;
 
 public class MeetingSchedulingPanel extends SolutionPanel<MeetingSchedule> {
 
@@ -227,6 +235,9 @@ public class MeetingSchedulingPanel extends SolutionPanel<MeetingSchedule> {
     private JButton createButton(MeetingAssignment meetingAssignment, Color color) {
         JButton button = SwingUtils.makeSmallButton(new JButton(new MeetingAssignmentAction(meetingAssignment)));
         button.setBackground(color);
+        if (meetingAssignment.isPinned()) {
+            button.setIcon(CommonIcons.PINNED_ICON);
+        }
         return button;
     }
 
@@ -246,10 +257,49 @@ public class MeetingSchedulingPanel extends SolutionPanel<MeetingSchedule> {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            // TODO Add support for moving meetings like in other examples
-            JOptionPane.showMessageDialog(MeetingSchedulingPanel.this.getTopLevelAncestor(),
-                    "The GUI does not support this action yet.",
-                    "Unsupported in GUI", JOptionPane.ERROR_MESSAGE);
+            JPanel listFieldsPanel = new JPanel(new GridLayout(3, 2));
+            listFieldsPanel.add(new JLabel("Starting time grain:"));
+            MeetingSchedule meetingSchedule = getSolution();
+            List<TimeGrain> timeGrainList = meetingSchedule.getTimeGrainList();
+            // Add 1 to array size to add null, which makes the entity unassigned
+            JComboBox timeGrainListField = new JComboBox(
+                    timeGrainList.toArray(new Object[timeGrainList.size() + 1]));
+            LabeledComboBoxRenderer.applyToComboBox(timeGrainListField);
+            timeGrainListField.setSelectedItem(meetingAssignment.getStartingTimeGrain());
+            listFieldsPanel.add(timeGrainListField);
+            listFieldsPanel.add(new JLabel("Room:"));
+            List<Room> roomList = meetingSchedule.getRoomList();
+            // Add 1 to array size to add null, which makes the entity unassigned
+            JComboBox roomListField = new JComboBox(
+                    roomList.toArray(new Object[roomList.size() + 1]));
+            LabeledComboBoxRenderer.applyToComboBox(roomListField);
+            roomListField.setSelectedItem(meetingAssignment.getRoom());
+            listFieldsPanel.add(roomListField);
+            listFieldsPanel.add(new JLabel("Pinned:"));
+            JCheckBox pinnedField = new JCheckBox("cannot move during solving");
+            pinnedField.setSelected(meetingAssignment.isPinned());
+            listFieldsPanel.add(pinnedField);
+            int result = JOptionPane.showConfirmDialog(MeetingSchedulingPanel.this.getRootPane(), listFieldsPanel,
+                    "Select time grain and room", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                TimeGrain toStartingTimeGrain = (TimeGrain) timeGrainListField.getSelectedItem();
+                if (meetingAssignment.getStartingTimeGrain() != toStartingTimeGrain) {
+                    solutionBusiness.doChangeMove(meetingAssignment, "startingTimeGrain", toStartingTimeGrain);
+                }
+                Room toRoom = (Room) roomListField.getSelectedItem();
+                if (meetingAssignment.getRoom() != toRoom) {
+                    solutionBusiness.doChangeMove(meetingAssignment, "room", toRoom);
+                }
+                boolean toPinned = pinnedField.isSelected();
+                if (meetingAssignment.isPinned() != toPinned) {
+                    if (solutionBusiness.isSolving()) {
+                        logger.error("Not doing user change because the solver is solving.");
+                        return;
+                    }
+                    meetingAssignment.setPinned(toPinned);
+                }
+                solverAndPersistenceFrame.resetScreen();
+            }
         }
 
     }

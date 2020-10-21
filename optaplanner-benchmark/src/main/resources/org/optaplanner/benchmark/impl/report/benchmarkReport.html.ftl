@@ -346,7 +346,7 @@
                             <div class="tab-pane active" id="summary_scoreCalculationSpeed">
                                 <h3>Score calculation speed summary</h3>
                                 <p>
-                                    Useful for comparing different score calculators and/or score rule implementations
+                                    Useful for comparing different score calculators and/or constraint implementations
                                     (presuming that the solver configurations do not differ otherwise).
                                     Also useful to measure the scalability cost of an extra constraint.
                                 </p>
@@ -411,7 +411,7 @@
                             <div class="tab-pane" id="summary_worstScoreCalculationSpeedDifferencePercentage">
                                 <h3>Worst score calculation speed difference percentage</h3>
                                 <p>
-                                    Useful for comparing different score calculators and/or score rule implementations
+                                    Useful for comparing different score calculators and/or constraint implementations
                                     (presuming that the solver configurations do not differ otherwise).
                                     Also useful to measure the scalability cost of an extra constraint.
                                 </p>
@@ -548,6 +548,14 @@
                         Variable count: ${problemBenchmarkResult.variableCount!""}<br/>
                         Maximum value count: ${problemBenchmarkResult.maximumValueCount!""}<br/>
                         Problem scale: ${problemBenchmarkResult.problemScale!""}
+                        <#if problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent??>
+                            <br/>Time spent to load the inputSolution:&nbsp;
+                            <#if problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent lt 1>
+                                &lt; 1 ms
+                            <#else>
+                                ${problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent} ms
+                            </#if>
+                        </#if>
                         <#if problemBenchmarkResult.averageUsedMemoryAfterInputSolution??>
                             <br/>Memory usage after loading the inputSolution (before creating the Solver): ${problemBenchmarkResult.averageUsedMemoryAfterInputSolution?string.number} bytes on average.
                         </#if>

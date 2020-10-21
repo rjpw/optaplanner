@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,30 +25,32 @@ import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.solution.drools.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
 /**
+ * Applies a new best solution from a partition child solver into the global working solution of the parent solver.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
 public final class PartitionChangeMove<Solution_> extends AbstractMove<Solution_> {
 
-    public static <Solution_> PartitionChangeMove<Solution_> createMove(InnerScoreDirector<Solution_> scoreDirector,
-                                                                        int partIndex) {
+    public static <Solution_> PartitionChangeMove<Solution_> createMove(InnerScoreDirector<Solution_, ?> scoreDirector,
+            int partIndex) {
         SolutionDescriptor<Solution_> solutionDescriptor = scoreDirector.getSolutionDescriptor();
         Solution_ workingSolution = scoreDirector.getWorkingSolution();
 
         int entityCount = solutionDescriptor.getEntityCount(workingSolution);
-        Map<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> changeMap
-                = new LinkedHashMap<>(solutionDescriptor.getEntityDescriptors().size() * 3);
+        Map<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> changeMap = new LinkedHashMap<>(
+                solutionDescriptor.getEntityDescriptors().size() * 3);
         for (EntityDescriptor<Solution_> entityDescriptor : solutionDescriptor.getEntityDescriptors()) {
-            for (GenuineVariableDescriptor<Solution_> variableDescriptor
-                    : entityDescriptor.getDeclaredGenuineVariableDescriptors()) {
+            for (GenuineVariableDescriptor<Solution_> variableDescriptor : entityDescriptor
+                    .getDeclaredGenuineVariableDescriptors()) {
                 changeMap.put(variableDescriptor, new ArrayList<>(entityCount));
             }
         }
@@ -57,8 +59,8 @@ public final class PartitionChangeMove<Solution_> extends AbstractMove<Solution_
             EntityDescriptor<Solution_> entityDescriptor = solutionDescriptor.findEntityDescriptorOrFail(
                     entity.getClass());
             if (entityDescriptor.isMovable(scoreDirector, entity)) {
-                for (GenuineVariableDescriptor<Solution_> variableDescriptor
-                        : entityDescriptor.getGenuineVariableDescriptors()) {
+                for (GenuineVariableDescriptor<Solution_> variableDescriptor : entityDescriptor
+                        .getGenuineVariableDescriptors()) {
                     Object value = variableDescriptor.getValue(entity);
                     changeMap.get(variableDescriptor).add(Pair.of(entity, value));
                 }
@@ -71,19 +73,20 @@ public final class PartitionChangeMove<Solution_> extends AbstractMove<Solution_
     private final int partIndex;
 
     public PartitionChangeMove(Map<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> changeMap,
-                               int partIndex) {
+            int partIndex) {
         this.changeMap = changeMap;
         this.partIndex = partIndex;
     }
 
     @Override
     protected void doMoveOnGenuineVariables(ScoreDirector<Solution_> scoreDirector) {
+        InnerScoreDirector<Solution_, ?> innerScoreDirector = (InnerScoreDirector<Solution_, ?>) scoreDirector;
         for (Map.Entry<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> entry : changeMap.entrySet()) {
             GenuineVariableDescriptor<Solution_> variableDescriptor = entry.getKey();
             for (Pair<Object, Object> pair : entry.getValue()) {
                 Object entity = pair.getKey();
                 Object value = pair.getValue();
-                scoreDirector.changeVariableFacade(variableDescriptor, entity, value);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, entity, value);
             }
         }
     }
@@ -94,24 +97,16 @@ public final class PartitionChangeMove<Solution_> extends AbstractMove<Solution_
     }
 
     @Override
-    protected AbstractMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
-        // TODO not yet implemented, returns null to fail fast if it is used
+    protected PartitionChangeMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
+        // HACK Creating an undoMove is a waste of time because it is never used,
+        // but this method is called anyway so it returns null to fail fast if it is used
         return null;
     }
 
     @Override
-    public Collection<? extends Object> getPlanningEntities() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Collection<? extends Object> getPlanningValues() {
-        throw new UnsupportedOperationException();
-    }
-
-    public PartitionChangeMove<Solution_> rebase(InnerScoreDirector<Solution_> destinationScoreDirector) {
-        Map<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> destinationChangeMap
-                = new LinkedHashMap<>(changeMap.size());
+    public PartitionChangeMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        Map<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> destinationChangeMap = new LinkedHashMap<>(
+                changeMap.size());
         for (Map.Entry<GenuineVariableDescriptor<Solution_>, List<Pair<Object, Object>>> entry : changeMap.entrySet()) {
             GenuineVariableDescriptor<Solution_> variableDescriptor = entry.getKey();
             List<Pair<Object, Object>> originPairList = entry.getValue();
@@ -139,6 +134,18 @@ public final class PartitionChangeMove<Solution_> extends AbstractMove<Solution_
             destinationChangeMap.put(variableDescriptor, destinationPairList);
         }
         return new PartitionChangeMove<>(destinationChangeMap, partIndex);
+    }
+
+    @Override
+    public Collection<? extends Object> getPlanningEntities() {
+        throw new UnsupportedOperationException("Impossible situation: " + PartitionChangeMove.class.getSimpleName()
+                + " is only used to communicate between a part thread and the solver thread, it's never used in Tabu Search.");
+    }
+
+    @Override
+    public Collection<? extends Object> getPlanningValues() {
+        throw new UnsupportedOperationException("Impossible situation: " + PartitionChangeMove.class.getSimpleName()
+                + " is only used to communicate between a part thread and the solver thread, it's never used in Tabu Search.");
     }
 
     @Override

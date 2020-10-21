@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,49 @@
 
 package org.optaplanner.core.impl.localsearch.decider.acceptor.composite;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.impl.localsearch.decider.acceptor.Acceptor;
 import org.optaplanner.core.impl.localsearch.decider.acceptor.CompositeAcceptor;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
+import org.optaplanner.core.impl.localsearch.scope.LocalSearchPhaseScope;
+import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 
 public class CompositeAcceptorTest {
+
     @Test
     public void phaseLifecycle() {
+        SolverScope<TestdataSolution> solverScope = mock(SolverScope.class);
+        LocalSearchPhaseScope<TestdataSolution> phaseScope = mock(LocalSearchPhaseScope.class);
+        LocalSearchStepScope<TestdataSolution> stepScope = mock(LocalSearchStepScope.class);
+
         Acceptor acceptor1 = mock(Acceptor.class);
         Acceptor acceptor2 = mock(Acceptor.class);
         Acceptor acceptor3 = mock(Acceptor.class);
         CompositeAcceptor compositeAcceptor = new CompositeAcceptor(acceptor1, acceptor2, acceptor3);
 
-        compositeAcceptor.solvingStarted(null);
-        compositeAcceptor.phaseStarted(null);
-        compositeAcceptor.stepStarted(null);
-        compositeAcceptor.stepEnded(null);
-        compositeAcceptor.stepStarted(null);
-        compositeAcceptor.stepEnded(null);
-        compositeAcceptor.phaseEnded(null);
-        compositeAcceptor.phaseStarted(null);
-        compositeAcceptor.stepStarted(null);
-        compositeAcceptor.stepEnded(null);
-        compositeAcceptor.phaseEnded(null);
-        compositeAcceptor.solvingEnded(null);
+        compositeAcceptor.solvingStarted(solverScope);
+        compositeAcceptor.phaseStarted(phaseScope);
+        compositeAcceptor.stepStarted(stepScope);
+        compositeAcceptor.stepEnded(stepScope);
+        compositeAcceptor.stepStarted(stepScope);
+        compositeAcceptor.stepEnded(stepScope);
+        compositeAcceptor.phaseEnded(phaseScope);
+        compositeAcceptor.phaseStarted(phaseScope);
+        compositeAcceptor.stepStarted(stepScope);
+        compositeAcceptor.stepEnded(stepScope);
+        compositeAcceptor.phaseEnded(phaseScope);
+        compositeAcceptor.solvingEnded(solverScope);
 
         verifyPhaseLifecycle(acceptor1, 1, 2, 3);
         verifyPhaseLifecycle(acceptor2, 1, 2, 3);
@@ -57,11 +67,11 @@ public class CompositeAcceptorTest {
 
     @Test
     public void isAccepted() {
-        assertEquals(true, isCompositeAccepted(true, true, true));
-        assertEquals(false, isCompositeAccepted(false, true, true));
-        assertEquals(false, isCompositeAccepted(true, false, true));
-        assertEquals(false, isCompositeAccepted(true, true, false));
-        assertEquals(false, isCompositeAccepted(false, false, false));
+        assertThat(isCompositeAccepted(true, true, true)).isTrue();
+        assertThat(isCompositeAccepted(false, true, true)).isFalse();
+        assertThat(isCompositeAccepted(true, false, true)).isFalse();
+        assertThat(isCompositeAccepted(true, true, false)).isFalse();
+        assertThat(isCompositeAccepted(false, false, false)).isFalse();
     }
 
     private boolean isCompositeAccepted(boolean... childAccepts) {
@@ -74,5 +84,4 @@ public class CompositeAcceptorTest {
         CompositeAcceptor acceptor = new CompositeAcceptor(acceptorList);
         return acceptor.isAccepted(mock(LocalSearchMoveScope.class));
     }
-
 }

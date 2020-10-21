@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,15 @@ import java.util.Iterator;
 import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class SortingValueSelector extends AbstractCachingValueSelector implements EntityIndependentValueSelector {
+public class SortingValueSelector<Solution_> extends AbstractCachingValueSelector<Solution_>
+        implements EntityIndependentValueSelector<Solution_> {
 
-    protected final SelectionSorter sorter;
+    protected final SelectionSorter<Solution_, Object> sorter;
 
-    public SortingValueSelector(EntityIndependentValueSelector childValueSelector, SelectionCacheType cacheType,
-            SelectionSorter sorter) {
+    public SortingValueSelector(EntityIndependentValueSelector<Solution_> childValueSelector, SelectionCacheType cacheType,
+            SelectionSorter<Solution_, Object> sorter) {
         super(childValueSelector, cacheType);
         this.sorter = sorter;
     }
@@ -38,7 +39,7 @@ public class SortingValueSelector extends AbstractCachingValueSelector implement
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         super.constructCache(solverScope);
         sorter.sort(solverScope.getScoreDirector(), cachedValueList);
         logger.trace("    Sorted cachedValueList: size ({}), valueSelector ({}).",

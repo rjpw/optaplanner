@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ package org.optaplanner.core.impl.solver.termination;
 
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
-public class PhaseToSolverTerminationBridge extends AbstractTermination {
+public class PhaseToSolverTerminationBridge<Solution_> extends AbstractTermination<Solution_> {
 
-    private final Termination solverTermination;
+    private final Termination<Solution_> solverTermination;
 
-    public PhaseToSolverTerminationBridge(Termination solverTermination) {
+    public PhaseToSolverTerminationBridge(Termination<Solution_> solverTermination) {
         this.solverTermination = solverTermination;
     }
 
@@ -34,32 +34,32 @@ public class PhaseToSolverTerminationBridge extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
     }
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
-        // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
+        solverTermination.phaseStarted(phaseScope);
     }
 
     @Override
-    public void stepStarted(AbstractStepScope stepScope) {
-        // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
+    public void stepStarted(AbstractStepScope<Solution_> stepScope) {
+        solverTermination.stepStarted(stepScope);
     }
 
     @Override
-    public void stepEnded(AbstractStepScope stepScope) {
-        // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
+    public void stepEnded(AbstractStepScope<Solution_> stepScope) {
+        solverTermination.stepEnded(stepScope);
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
-        // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
+        solverTermination.phaseStarted(phaseScope);
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         // Do not delegate the event to the solverTermination, because it already gets the event from the DefaultSolver
     }
 
@@ -68,13 +68,13 @@ public class PhaseToSolverTerminationBridge extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
         throw new UnsupportedOperationException(
                 getClass().getSimpleName() + " can only be used for phase termination.");
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
         return solverTermination.isSolverTerminated(phaseScope.getSolverScope());
     }
 
@@ -83,13 +83,13 @@ public class PhaseToSolverTerminationBridge extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         throw new UnsupportedOperationException(
                 getClass().getSimpleName() + " can only be used for phase termination.");
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         return solverTermination.calculateSolverTimeGradient(phaseScope.getSolverScope());
     }
 
@@ -98,8 +98,8 @@ public class PhaseToSolverTerminationBridge extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public Termination createChildThreadTermination(
-            DefaultSolverScope solverScope, ChildThreadType childThreadType) {
+    public Termination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
         if (childThreadType == ChildThreadType.PART_THREAD) {
             // Remove of the bridge (which is nested if there's a phase termination), PhaseConfig will add it again
             return solverTermination.createChildThreadTermination(solverScope, childThreadType);

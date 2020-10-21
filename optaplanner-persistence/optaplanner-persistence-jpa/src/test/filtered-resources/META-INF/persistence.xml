@@ -5,6 +5,19 @@
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
     <jta-data-source>jdbc/testDS1</jta-data-source>
 
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.bendable.BendableScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.bendablebigdecimal.BendableBigDecimalScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.bendablelong.BendableLongScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardmediumsoft.HardMediumSoftScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardmediumsoftbigdecimal.HardMediumSoftBigDecimalScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardmediumsoftlong.HardMediumSoftLongScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardsoft.HardSoftScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardsoftbigdecimal.HardSoftBigDecimalScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.hardsoftlong.HardSoftLongScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.simple.SimpleScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.simplebigdecimal.SimpleBigDecimalScoreConverterTest$TestJpaEntity</class>
+    <class>org.optaplanner.persistence.jpa.api.score.buildin.simplelong.SimpleLongScoreConverterTest$TestJpaEntity</class>
+
     <class>org.optaplanner.persistence.jpa.impl.score.AbstractScoreHibernateTypeTest$AbstractTestJpaEntity</class>
     <class>org.optaplanner.persistence.jpa.impl.score.buildin.simple.SimpleScoreHibernateTypeTest$TestJpaEntity</class>
     <class>org.optaplanner.persistence.jpa.impl.score.buildin.simplelong.SimpleLongScoreHibernateTypeTest$TestJpaEntity</class>
@@ -29,11 +42,6 @@
 
       <property name="hibernate.dialect" value="${maven.hibernate.dialect}"/>
       <property name="hibernate.default_schema" value="${maven.jdbc.schema}"/>
-
-      <property name="hibernate.connection.driver_class" value="${maven.jdbc.driver.class}" />
-      <property name="hibernate.connection.url" value="${maven.jdbc.url}" />
-      <property name="hibernate.connection.username" value="${maven.jdbc.username}" />
-      <property name="hibernate.connection.password" value="${maven.jdbc.password}" />
 
       <!-- The following line is what's used in Hibernate 4 instead of a TransactionManagerLookup class -->
       <property name="hibernate.transaction.jta.platform" value="org.hibernate.service.jta.platform.internal.JBossStandAloneJtaPlatform" />

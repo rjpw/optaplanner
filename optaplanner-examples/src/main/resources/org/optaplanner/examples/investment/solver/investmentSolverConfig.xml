@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<solver>
-  <!--<environmentMode>FULL_ASSERT</environmentMode>-->
+<solver xmlns="https://www.optaplanner.org/xsd/solver" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://www.optaplanner.org/xsd/solver https://www.optaplanner.org/xsd/solver/solver.xsd">
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
 
   <!-- Domain model configuration -->
   <solutionClass>org.optaplanner.examples.investment.domain.InvestmentSolution</solutionClass>
@@ -10,10 +12,11 @@
   <scoreDirectorFactory>
     <!--<easyScoreCalculatorClass>org.optaplanner.examples.investment.solver.score.InvestmentEasyScoreCalculator</easyScoreCalculatorClass>-->
     <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.investment.solver.score.InvestmentIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
-    <scoreDrl>org/optaplanner/examples/investment/solver/investmentScoreRules.drl</scoreDrl>
+    <!--<constraintProviderClass>org.optaplanner.examples.investment.optional.score.InvestmentConstraintProvider</constraintProviderClass>-->
+    <scoreDrl>org/optaplanner/examples/investment/solver/investmentConstraints.drl</scoreDrl>
     <initializingScoreTrend>ONLY_DOWN/ANY</initializingScoreTrend>
     <!--<assertionScoreDirectorFactory>-->
-      <!--<easyScoreCalculatorClass>org.optaplanner.examples.investment.solver.score.InvestmentEasyScoreCalculator</easyScoreCalculatorClass>-->
+    <!--<easyScoreCalculatorClass>org.optaplanner.examples.investment.solver.score.InvestmentEasyScoreCalculator</easyScoreCalculatorClass>-->
     <!--</assertionScoreDirectorFactory>-->
   </scoreDirectorFactory>
 

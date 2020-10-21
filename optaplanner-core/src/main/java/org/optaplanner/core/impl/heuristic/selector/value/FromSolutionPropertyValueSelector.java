@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +30,10 @@ import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 /**
  * This is the common {@link ValueSelector} implementation.
  */
-public class FromSolutionPropertyValueSelector extends AbstractValueSelector
-        implements EntityIndependentValueSelector {
+public class FromSolutionPropertyValueSelector<Solution_> extends AbstractValueSelector<Solution_>
+        implements EntityIndependentValueSelector<Solution_> {
 
-    protected final EntityIndependentValueRangeDescriptor valueRangeDescriptor;
+    protected final EntityIndependentValueRangeDescriptor<Solution_> valueRangeDescriptor;
     protected final SelectionCacheType minimumCacheType;
     protected final boolean randomSelection;
     protected final boolean valueRangeMightContainEntity;
@@ -42,7 +42,7 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
     protected Long cachedEntityListRevision = null;
     protected boolean cachedEntityListIsDirty = false;
 
-    public FromSolutionPropertyValueSelector(EntityIndependentValueRangeDescriptor valueRangeDescriptor,
+    public FromSolutionPropertyValueSelector(EntityIndependentValueRangeDescriptor<Solution_> valueRangeDescriptor,
             SelectionCacheType minimumCacheType, boolean randomSelection) {
         this.valueRangeDescriptor = valueRangeDescriptor;
         this.minimumCacheType = minimumCacheType;
@@ -51,16 +51,18 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
     }
 
     @Override
-    public GenuineVariableDescriptor getVariableDescriptor() {
+    public GenuineVariableDescriptor<Solution_> getVariableDescriptor() {
         return valueRangeDescriptor.getVariableDescriptor();
     }
 
     @Override
     public SelectionCacheType getCacheType() {
         SelectionCacheType intrinsicCacheType = valueRangeMightContainEntity
-                ? SelectionCacheType.STEP : SelectionCacheType.PHASE;
+                ? SelectionCacheType.STEP
+                : SelectionCacheType.PHASE;
         return (intrinsicCacheType.compareTo(minimumCacheType) > 0)
-                ? intrinsicCacheType : minimumCacheType;
+                ? intrinsicCacheType
+                : minimumCacheType;
     }
 
     // ************************************************************************
@@ -68,11 +70,10 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
-        InnerScoreDirector scoreDirector = phaseScope.getScoreDirector();
-        cachedValueRange = (ValueRange<Object>)
-                valueRangeDescriptor.extractValueRange(scoreDirector.getWorkingSolution());
+        InnerScoreDirector<Solution_, ?> scoreDirector = phaseScope.getScoreDirector();
+        cachedValueRange = (ValueRange<Object>) valueRangeDescriptor.extractValueRange(scoreDirector.getWorkingSolution());
         if (valueRangeMightContainEntity) {
             cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
             cachedEntityListIsDirty = false;
@@ -80,16 +81,16 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
     }
 
     @Override
-    public void stepStarted(AbstractStepScope stepScope) {
+    public void stepStarted(AbstractStepScope<Solution_> stepScope) {
         super.stepStarted(stepScope);
         if (valueRangeMightContainEntity) {
-            InnerScoreDirector scoreDirector = stepScope.getScoreDirector();
+            InnerScoreDirector<Solution_, ?> scoreDirector = stepScope.getScoreDirector();
             if (scoreDirector.isWorkingEntityListDirty(cachedEntityListRevision)) {
                 if (minimumCacheType.compareTo(SelectionCacheType.STEP) > 0) {
                     cachedEntityListIsDirty = true;
                 } else {
-                    cachedValueRange = (ValueRange<Object>)
-                            valueRangeDescriptor.extractValueRange(scoreDirector.getWorkingSolution());
+                    cachedValueRange = (ValueRange<Object>) valueRangeDescriptor
+                            .extractValueRange(scoreDirector.getWorkingSolution());
                     cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
                 }
             }
@@ -97,7 +98,7 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         cachedValueRange = null;
         if (valueRangeMightContainEntity) {
@@ -147,7 +148,7 @@ public class FromSolutionPropertyValueSelector extends AbstractValueSelector
 
     @Override
     public Iterator<Object> endingIterator(Object entity) {
-       return endingIterator();
+        return endingIterator();
     }
 
     public Iterator<Object> endingIterator() {

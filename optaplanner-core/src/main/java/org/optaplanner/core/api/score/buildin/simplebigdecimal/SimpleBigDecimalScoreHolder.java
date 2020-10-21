@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,43 +19,36 @@ package org.optaplanner.core.api.score.buildin.simplebigdecimal;
 import java.math.BigDecimal;
 
 import org.kie.api.runtime.rule.RuleContext;
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.holder.AbstractScoreHolder;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.score.holder.ScoreHolder;
 
 /**
  * @see SimpleBigDecimalScore
  */
-public class SimpleBigDecimalScoreHolder extends AbstractScoreHolder {
+public interface SimpleBigDecimalScoreHolder extends ScoreHolder<SimpleBigDecimalScore> {
 
-    protected BigDecimal score = null;
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, BigDecimal weightMultiplier);
 
-    public SimpleBigDecimalScoreHolder(boolean constraintMatchEnabled) {
-        super(constraintMatchEnabled, SimpleBigDecimalScore.ZERO);
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, BigDecimal weightMultiplier);
 
-    public BigDecimal getScore() {
-        return score;
-    }
-
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
+    void impactScore(RuleContext kcontext, BigDecimal weightMultiplier);
 
     /**
      * @param kcontext never null, the magic variable in DRL
      * @param weight never null, higher is better, negative for a penalty, positive for a reward
      */
-    public void addConstraintMatch(RuleContext kcontext, BigDecimal weight) {
-        score = (score == null) ? weight : score.add(weight);
-        registerConstraintMatch(kcontext,
-                () -> score = score.subtract(weight),
-                () -> SimpleBigDecimalScore.valueOf(weight));
-    }
-
-    @Override
-    public Score extractScore(int initScore) {
-        return SimpleBigDecimalScore.valueOfUninitialized(initScore,
-                score == null ? BigDecimal.ZERO : score);
-    }
+    void addConstraintMatch(RuleContext kcontext, BigDecimal weight);
 
 }

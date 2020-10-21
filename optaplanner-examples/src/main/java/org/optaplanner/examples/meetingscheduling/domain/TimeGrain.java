@@ -16,11 +16,13 @@
 
 package org.optaplanner.examples.meetingscheduling.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.common.swingui.components.Labeled;
 
-@XStreamAlias("MsTimeGrain")
 public class TimeGrain extends AbstractPersistable implements Labeled {
 
     /**
@@ -57,6 +59,18 @@ public class TimeGrain extends AbstractPersistable implements Labeled {
         this.startingMinuteOfDay = startingMinuteOfDay;
     }
 
+    public LocalDate getDate() {
+        return day.toDate();
+    }
+
+    public LocalTime getTime() {
+        return LocalTime.of(startingMinuteOfDay / 60, startingMinuteOfDay % 60);
+    }
+
+    public LocalDateTime getDateTime() {
+        return LocalDateTime.of(getDate(), getTime());
+    }
+
     public String getTimeString() {
         int hourOfDay = startingMinuteOfDay / 60;
         int minuteOfHour = startingMinuteOfDay % 60;
@@ -77,5 +91,4 @@ public class TimeGrain extends AbstractPersistable implements Labeled {
     public String toString() {
         return grainIndex + "(" + getDateTimeString() + ")";
     }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Abstract superclass for {@link Acceptor}.
+ *
  * @see Acceptor
  */
-public abstract class AbstractAcceptor extends LocalSearchPhaseLifecycleListenerAdapter implements Acceptor {
+public abstract class AbstractAcceptor<Solution_> extends LocalSearchPhaseLifecycleListenerAdapter<Solution_>
+        implements Acceptor<Solution_> {
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 

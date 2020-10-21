@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,30 @@
 
 package org.optaplanner.examples.meetingscheduling.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.apache.commons.lang3.text.WordUtils;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
+import org.optaplanner.core.api.domain.entity.PlanningPin;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 
 @PlanningEntity()
-@XStreamAlias("MsMeetingAssignment")
 public class MeetingAssignment extends AbstractPersistable {
 
     private Meeting meeting;
+    private boolean pinned;
 
     // Planning variables: changes during planning, between score calculations.
     private TimeGrain startingTimeGrain;
     private Room room;
+
+    public MeetingAssignment() {
+    }
+
+    public MeetingAssignment(Meeting meeting, TimeGrain startingTimeGrain, Room room) {
+        this.meeting = meeting;
+        this.startingTimeGrain = startingTimeGrain;
+        this.room = room;
+    }
 
     public Meeting getMeeting() {
         return meeting;
@@ -40,7 +49,16 @@ public class MeetingAssignment extends AbstractPersistable {
         this.meeting = meeting;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"timeGrainRange"})
+    @PlanningPin
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
+    }
+
+    @PlanningVariable(valueRangeProviderRefs = { "timeGrainRange" })
     public TimeGrain getStartingTimeGrain() {
         return startingTimeGrain;
     }
@@ -49,7 +67,7 @@ public class MeetingAssignment extends AbstractPersistable {
         this.startingTimeGrain = startingTimeGrain;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"roomRange"})
+    @PlanningVariable(valueRangeProviderRefs = { "roomRange" })
     public Room getRoom() {
         return room;
     }

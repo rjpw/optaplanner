@@ -34,6 +34,11 @@ public final class ReflectionFieldMemberAccessor implements MemberAccessor {
     }
 
     @Override
+    public Class<?> getDeclaringClass() {
+        return field.getDeclaringClass();
+    }
+
+    @Override
     public String getName() {
         return field.getName();
     }
@@ -54,7 +59,8 @@ public final class ReflectionFieldMemberAccessor implements MemberAccessor {
             return field.get(bean);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot get the field (" + field.getName()
-                    + ") on bean of class (" + bean.getClass() + ").", e);
+                    + ") on bean of class (" + bean.getClass() + ").\n" +
+                    MemberAccessorFactory.CLASSLOADER_NUDGE_MESSAGE, e);
         }
     }
 

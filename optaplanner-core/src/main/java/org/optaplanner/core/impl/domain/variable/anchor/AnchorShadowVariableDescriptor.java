@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.domain.variable.AnchorShadowVariable;
+import org.optaplanner.core.api.domain.variable.VariableListener;
 import org.optaplanner.core.impl.domain.common.accessor.MemberAccessor;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.policy.DescriptorPolicy;
@@ -29,7 +30,6 @@ import org.optaplanner.core.impl.domain.variable.descriptor.ShadowVariableDescri
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
 import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
-import org.optaplanner.core.impl.domain.variable.listener.VariableListener;
 import org.optaplanner.core.impl.domain.variable.supply.Demand;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
@@ -69,7 +69,7 @@ public class AnchorShadowVariableDescriptor<Solution_> extends ShadowVariableDes
                     + entityDescriptor.buildInvalidVariableNameExceptionMessage(sourceVariableName));
         }
         if (!(sourceVariableDescriptor instanceof GenuineVariableDescriptor) ||
-                !((GenuineVariableDescriptor) sourceVariableDescriptor).isChained()) {
+                !((GenuineVariableDescriptor<Solution_>) sourceVariableDescriptor).isChained()) {
             throw new IllegalArgumentException("The entityClass (" + entityDescriptor.getEntityClass()
                     + ") has a " + AnchorShadowVariable.class.getSimpleName()
                     + " annotated property (" + variableMemberAccessor.getName()
@@ -94,15 +94,15 @@ public class AnchorShadowVariableDescriptor<Solution_> extends ShadowVariableDes
     // ************************************************************************
 
     @Override
-    public Demand getProvidedDemand() {
-        return new AnchorVariableDemand(sourceVariableDescriptor);
+    public Demand<Solution_, ?> getProvidedDemand() {
+        return new AnchorVariableDemand<>(sourceVariableDescriptor);
     }
 
     @Override
-    public VariableListener buildVariableListener(InnerScoreDirector<Solution_> scoreDirector) {
+    public VariableListener<Solution_, ?> buildVariableListener(InnerScoreDirector<Solution_, ?> scoreDirector) {
         SingletonInverseVariableSupply inverseVariableSupply = scoreDirector.getSupplyManager()
-                .demand(new SingletonInverseVariableDemand(sourceVariableDescriptor));
-        return new AnchorVariableListener(this, sourceVariableDescriptor, inverseVariableSupply);
+                .demand(new SingletonInverseVariableDemand<>(sourceVariableDescriptor));
+        return new AnchorVariableListener<Solution_>(this, sourceVariableDescriptor, inverseVariableSupply);
     }
 
 }

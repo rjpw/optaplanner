@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 
 package org.optaplanner.examples.nurserostering.solver.drools;
 
-import java.io.Serializable;
 import java.time.DayOfWeek;
+import java.util.Comparator;
+import java.util.Objects;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 import org.optaplanner.examples.nurserostering.domain.ShiftDate;
 import org.optaplanner.examples.nurserostering.domain.WeekendDefinition;
 import org.optaplanner.examples.nurserostering.domain.contract.Contract;
 
-public class EmployeeConsecutiveAssignmentEnd implements Comparable<EmployeeConsecutiveAssignmentEnd>, Serializable {
+public class EmployeeConsecutiveAssignmentEnd implements Comparable<EmployeeConsecutiveAssignmentEnd> {
+
+    private static final Comparator<EmployeeConsecutiveAssignmentEnd> COMPARATOR = Comparator
+            .comparing(EmployeeConsecutiveAssignmentEnd::getEmployee)
+            .thenComparing(EmployeeConsecutiveAssignmentEnd::getShiftDate);
 
     private Employee employee;
     private ShiftDate shiftDate;
@@ -57,31 +59,23 @@ public class EmployeeConsecutiveAssignmentEnd implements Comparable<EmployeeCons
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof EmployeeConsecutiveAssignmentEnd) {
-            EmployeeConsecutiveAssignmentEnd other = (EmployeeConsecutiveAssignmentEnd) o;
-            return new EqualsBuilder()
-                    .append(employee, other.employee)
-                    .append(shiftDate, other.shiftDate)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final EmployeeConsecutiveAssignmentEnd other = (EmployeeConsecutiveAssignmentEnd) o;
+        return Objects.equals(employee, other.employee) &&
+                Objects.equals(shiftDate, other.shiftDate);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(employee)
-                .append(shiftDate)
-                .toHashCode();
+        return Objects.hash(employee, shiftDate);
     }
 
     @Override
     public int compareTo(EmployeeConsecutiveAssignmentEnd other) {
-        return new CompareToBuilder()
-                .append(employee, other.employee)
-                .append(shiftDate, other.shiftDate)
-                .toComparison();
+        return COMPARATOR.compare(this, other);
     }
 
     @Override

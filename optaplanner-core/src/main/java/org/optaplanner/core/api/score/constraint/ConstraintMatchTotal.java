@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,142 +16,75 @@
 
 package org.optaplanner.core.api.score.constraint;
 
-import java.io.Serializable;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintConfiguration;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.ScoreExplanation;
 
 /**
- * Retrievable from {@link ScoreDirector#getConstraintMatchTotals()}.
+ * Explains the {@link Score} of a {@link PlanningSolution}, from the opposite side than {@link Indictment}.
+ * Retrievable from {@link ScoreExplanation#getConstraintMatchTotalMap()}.
+ * 
+ * @param <Score_> the actual score type
  */
-public final class ConstraintMatchTotal implements Serializable, Comparable<ConstraintMatchTotal> {
-
-    protected final String constraintPackage;
-    protected final String constraintName;
-
-    protected final Set<ConstraintMatch> constraintMatchSet;
-    protected Score scoreTotal;
+public interface ConstraintMatchTotal<Score_ extends Score<Score_>> {
 
     /**
      * @param constraintPackage never null
      * @param constraintName never null
-     * @param zeroScore never null
+     * @return never null
      */
-    public ConstraintMatchTotal(String constraintPackage, String constraintName, Score zeroScore) {
-        this.constraintPackage = constraintPackage;
-        this.constraintName = constraintName;
-        constraintMatchSet = new LinkedHashSet<>();
-        scoreTotal = zeroScore;
+    static String composeConstraintId(String constraintPackage, String constraintName) {
+        return constraintPackage + "/" + constraintName;
     }
 
     /**
      * @return never null
      */
-    public String getConstraintPackage() {
-        return constraintPackage;
-    }
+    String getConstraintPackage();
 
     /**
      * @return never null
      */
-    public String getConstraintName() {
-        return constraintName;
-    }
+    String getConstraintName();
+
+    /**
+     * The value of the {@link ConstraintWeight} annotated member of the {@link ConstraintConfiguration}.
+     * It's independent to the state of the {@link PlanningVariable planning variables}.
+     * Do not confuse with {@link #getScore()}.
+     *
+     * @return null if {@link ConstraintWeight} isn't used for this constraint
+     */
+    Score_ getConstraintWeight();
 
     /**
      * @return never null
      */
-    public Set<ConstraintMatch> getConstraintMatchSet() {
-        return constraintMatchSet;
-    }
+    Set<ConstraintMatch<Score_>> getConstraintMatchSet();
 
     /**
      * @return {@code >= 0}
      */
-    public int getConstraintMatchCount() {
+    default int getConstraintMatchCount() {
         return getConstraintMatchSet().size();
     }
 
     /**
+     * Sum of the {@link #getConstraintMatchSet()}'s {@link ConstraintMatch#getScore()}.
+     *
      * @return never null
      */
-    public Score getScoreTotal() {
-        return scoreTotal;
-    }
+    Score_ getScore();
 
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
-
-    public ConstraintMatch addConstraintMatch(List<Object> justificationList, Score score) {
-        scoreTotal = scoreTotal.add(score);
-        ConstraintMatch constraintMatch = new ConstraintMatch(constraintPackage, constraintName,
-                justificationList, score);
-        boolean added = constraintMatchSet.add(constraintMatch);
-        if (!added) {
-            throw new IllegalStateException("The constraintMatchTotal (" + this
-                    + ") could not add constraintMatch (" + constraintMatch
-                    + ") to its constraintMatchSet (" + constraintMatchSet + ").");
-        }
-        return constraintMatch;
-    }
-
-    public void removeConstraintMatch(ConstraintMatch constraintMatch) {
-        scoreTotal = scoreTotal.subtract(constraintMatch.getScore());
-        boolean removed = constraintMatchSet.remove(constraintMatch);
-        if (!removed) {
-            throw new IllegalStateException("The constraintMatchTotal (" + this
-                    + ") could not remove constraintMatch (" + constraintMatch
-                    + ") from its constraintMatchSet (" + constraintMatchSet + ").");
-        }
-    }
-
-    // ************************************************************************
-    // Infrastructure methods
-    // ************************************************************************
-
-    public String getConstraintId() {
-        return constraintPackage + "/" + constraintName;
-    }
-
-    @Override
-    public int compareTo(ConstraintMatchTotal other) {
-        if (!constraintPackage.equals(other.constraintPackage)) {
-            return constraintPackage.compareTo(other.constraintPackage);
-        } else if (!constraintName.equals(other.constraintName)) {
-            return constraintName.compareTo(other.constraintName);
-        } else {
-            return 0;
-        }
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof ConstraintMatchTotal) {
-            ConstraintMatchTotal other = (ConstraintMatchTotal) o;
-            return constraintPackage.equals(other.constraintPackage)
-                    && constraintName.equals(other.constraintName);
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return ((17 * 37)
-                + constraintPackage.hashCode()) * 37
-                + constraintName.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return getConstraintId() + "=" + getScoreTotal();
-    }
+    /**
+     * To create a constraintId, use {@link #composeConstraintId(String, String)}.
+     *
+     * @return never null
+     */
+    String getConstraintId();
 
 }

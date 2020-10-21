@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,22 @@
 
 package org.optaplanner.examples.cloudbalancing.optional.domain;
 
-import java.io.Serializable;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
+
+import java.util.Collections;
 import java.util.Comparator;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.optaplanner.examples.cloudbalancing.domain.CloudComputer;
 
-public class CloudComputerStrengthComparator implements Comparator<CloudComputer>, Serializable {
+public class CloudComputerStrengthComparator implements Comparator<CloudComputer> {
+
+    private static final Comparator<CloudComputer> COMPARATOR = comparingInt(CloudComputer::getMultiplicand)
+            .thenComparing(Collections.reverseOrder(comparing(CloudComputer::getCost))) // Descending (but this is debatable)
+            .thenComparingLong(CloudComputer::getId);
 
     @Override
     public int compare(CloudComputer a, CloudComputer b) {
-        return new CompareToBuilder()
-                .append(a.getMultiplicand(), b.getMultiplicand())
-                .append(b.getCost(), a.getCost()) // Descending (but this is debatable)
-                .append(a.getId(), b.getId())
-                .toComparison();
+        return COMPARATOR.compare(a, b);
     }
-
 }

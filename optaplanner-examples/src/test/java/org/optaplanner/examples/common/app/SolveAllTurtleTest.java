@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,49 +16,79 @@
 
 package org.optaplanner.examples.common.app;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+
+import java.io.File;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.calculator.EasyScoreCalculator;
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
 import org.optaplanner.core.config.score.director.ScoreDirectorFactoryConfig;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.core.config.solver.SolverConfig;
 import org.optaplanner.core.config.solver.termination.TerminationConfig;
-import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.examples.common.TestSystemProperties;
+import org.optaplanner.examples.common.TurtleTest;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-@RunWith(Parameterized.class)
-public abstract class SolveAllTurtleTest<Solution_> extends AbstractTurtleTest {
+public abstract class SolveAllTurtleTest<Solution_> extends LoggingTest {
 
-    private final String solverConfig;
+    interface ProblemFactory<Solution_> extends Function<File, Solution_> {
 
-    public SolveAllTurtleTest(String solverConfig) {
-        this.solverConfig = solverConfig;
+        default Solution_ loadProblem(File f) {
+            return apply(f);
+        }
     }
 
-    protected abstract Solution_ readProblem();
+    private static final String MOVE_THREAD_COUNT_OVERRIDE = System.getProperty(TestSystemProperties.MOVE_THREAD_COUNT);
 
-    @Test
-    public void runFastAndFullAssert() {
-        checkRunTurtleTests();
-        SolverFactory<Solution_> solverFactory = buildSolverFactory();
-        Solution_ problem = readProblem();
+    protected abstract List<File> getSolutionFiles(CommonApp<Solution_> commonApp);
+
+    protected abstract CommonApp<Solution_> createCommonApp();
+
+    protected abstract ProblemFactory<Solution_> createProblemFactory(CommonApp<Solution_> commonApp);
+
+    @TestFactory
+    @TurtleTest
+    Stream<DynamicTest> runFastAndFullAssert() {
+        CommonApp<Solution_> commonApp = createCommonApp();
+        ProblemFactory<Solution_> problemFactory = createProblemFactory(commonApp);
+        return getSolutionFiles(commonApp).stream()
+                .map(solutionFile -> dynamicTest(solutionFile.getName(), () -> runFastAndFullAssert(
+                        buildSolverConfig(commonApp.getSolverConfigResource()),
+                        problemFactory.loadProblem(solutionFile))));
+    }
+
+    public void runFastAndFullAssert(SolverConfig solverConfig, Solution_ problem) {
         // Specifically use NON_INTRUSIVE_FULL_ASSERT instead of FULL_ASSERT to flush out bugs hidden by intrusiveness
         // 1) NON_INTRUSIVE_FULL_ASSERT ASSERT to find CH bugs (but covers little ground)
-        problem = buildAndSolve(solverFactory, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 2L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 2L);
         // 2) FAST_ASSERT to run past CH into LS to find easy bugs (but covers much ground)
-        problem = buildAndSolve(solverFactory, EnvironmentMode.FAST_ASSERT, problem, 5L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.FAST_ASSERT, problem, 5L);
         // 3) NON_INTRUSIVE_FULL_ASSERT ASSERT to find LS bugs (but covers little ground)
-        problem = buildAndSolve(solverFactory, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 3L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 3L);
     }
 
-    protected Solution_ buildAndSolve(SolverFactory<Solution_> solverFactory, EnvironmentMode environmentMode,
+    private static SolverConfig buildSolverConfig(String solverConfigResource) {
+        SolverConfig solverConfig = SolverConfig.createFromXmlResource(solverConfigResource);
+        // buildAndSolve() fills in minutesSpentLimit
+        solverConfig.setTerminationConfig(new TerminationConfig());
+        if (MOVE_THREAD_COUNT_OVERRIDE != null) {
+            solverConfig.setMoveThreadCount(MOVE_THREAD_COUNT_OVERRIDE);
+        }
+        return solverConfig;
+    }
+
+    private Solution_ buildAndSolve(SolverConfig solverConfig, EnvironmentMode environmentMode,
             Solution_ problem, long maximumMinutesSpent) {
-        SolverConfig solverConfig = solverFactory.getSolverConfig();
         solverConfig.getTerminationConfig().setMinutesSpentLimit(maximumMinutesSpent);
         solverConfig.setEnvironmentMode(environmentMode);
         Class<? extends EasyScoreCalculator> easyScoreCalculatorClass = overwritingEasyScoreCalculatorClass();
@@ -68,20 +98,12 @@ public abstract class SolveAllTurtleTest<Solution_> extends AbstractTurtleTest {
             solverConfig.getScoreDirectorFactoryConfig().setAssertionScoreDirectorFactory(
                     assertionScoreDirectorFactoryConfig);
         }
+        SolverFactory<Solution_> solverFactory = SolverFactory.create(solverConfig);
         Solver<Solution_> solver = solverFactory.buildSolver();
-        Solution_ bestSolution = solver.solve(problem);
-        return bestSolution;
+        return solver.solve(problem);
     }
 
-    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass()  {
+    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
         return null;
     }
-
-    protected SolverFactory<Solution_> buildSolverFactory() {
-        SolverFactory<Solution_> solverFactory = SolverFactory.createFromXmlResource(solverConfig);
-        // buildAndSolve() fills in minutesSpentLimit
-        solverFactory.getSolverConfig().setTerminationConfig(new TerminationConfig());
-        return solverFactory;
-    }
-
 }

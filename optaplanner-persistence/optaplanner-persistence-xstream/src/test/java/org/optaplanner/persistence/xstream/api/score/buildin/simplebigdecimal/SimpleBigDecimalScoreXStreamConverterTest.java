@@ -18,19 +18,20 @@ package org.optaplanner.persistence.xstream.api.score.buildin.simplebigdecimal;
 
 import java.math.BigDecimal;
 
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.simplebigdecimal.SimpleBigDecimalScore;
 import org.optaplanner.persistence.xstream.api.score.AbstractScoreXStreamConverterTest;
+
+import com.thoughtworks.xstream.annotations.XStreamConverter;
 
 public class SimpleBigDecimalScoreXStreamConverterTest extends AbstractScoreXStreamConverterTest {
 
     @Test
     public void serializeAndDeserialize() {
         assertSerializeAndDeserialize(null, new TestSimpleBigDecimalScoreWrapper(null));
-        SimpleBigDecimalScore score = SimpleBigDecimalScore.valueOf(new BigDecimal("1234.4321"));
+        SimpleBigDecimalScore score = SimpleBigDecimalScore.of(new BigDecimal("1234.4321"));
         assertSerializeAndDeserialize(score, new TestSimpleBigDecimalScoreWrapper(score));
-        score = SimpleBigDecimalScore.valueOfUninitialized(-7, new BigDecimal("1234.4321"));
+        score = SimpleBigDecimalScore.ofUninitialized(-7, new BigDecimal("1234.4321"));
         assertSerializeAndDeserialize(score, new TestSimpleBigDecimalScoreWrapper(score));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@ package org.optaplanner.examples.common.app;
 
 import java.awt.Component;
 import java.io.File;
+import java.util.function.BiConsumer;
+
 import javax.swing.WindowConstants;
 
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
+import org.optaplanner.core.impl.solver.DefaultSolverFactory;
 import org.optaplanner.examples.common.business.SolutionBusiness;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
@@ -31,8 +33,6 @@ import org.optaplanner.examples.common.swingui.SolverAndPersistenceFrame;
 import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 import org.optaplanner.swing.impl.SwingUncaughtExceptionHandler;
 import org.optaplanner.swing.impl.SwingUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
@@ -62,8 +62,6 @@ public abstract class CommonApp<Solution_> extends LoggingMain {
         return dataDir;
     }
 
-    protected static final Logger logger = LoggerFactory.getLogger(CommonApp.class);
-
     /**
      * Some examples are not compatible with every native LookAndFeel.
      * For example, NurseRosteringPanel is incompatible with Mac.
@@ -75,17 +73,17 @@ public abstract class CommonApp<Solution_> extends LoggingMain {
 
     protected final String name;
     protected final String description;
-    protected final String solverConfig;
+    protected final String solverConfigResource;
     protected final String dataDirName;
     protected final String iconResource;
 
     protected SolverAndPersistenceFrame<Solution_> solverAndPersistenceFrame;
-    protected SolutionBusiness<Solution_> solutionBusiness;
+    protected SolutionBusiness<Solution_, ?> solutionBusiness;
 
-    protected CommonApp(String name, String description, String solverConfig, String dataDirName, String iconResource) {
+    protected CommonApp(String name, String description, String solverConfigResource, String dataDirName, String iconResource) {
         this.name = name;
         this.description = description;
-        this.solverConfig = solverConfig;
+        this.solverConfigResource = solverConfigResource;
         this.dataDirName = dataDirName;
         this.iconResource = iconResource;
     }
@@ -98,8 +96,8 @@ public abstract class CommonApp<Solution_> extends LoggingMain {
         return description;
     }
 
-    public String getSolverConfig() {
-        return solverConfig;
+    public String getSolverConfigResource() {
+        return solverConfigResource;
     }
 
     public String getDataDirName() {
@@ -116,15 +114,18 @@ public abstract class CommonApp<Solution_> extends LoggingMain {
 
     public void init(Component centerForComponent, boolean exitOnClose) {
         solutionBusiness = createSolutionBusiness();
-        solverAndPersistenceFrame = new SolverAndPersistenceFrame<>(solutionBusiness, createSolutionPanel());
-        solverAndPersistenceFrame.setDefaultCloseOperation(exitOnClose ? WindowConstants.EXIT_ON_CLOSE : WindowConstants.DISPOSE_ON_CLOSE);
+        solverAndPersistenceFrame = new SolverAndPersistenceFrame<>(solutionBusiness, createSolutionPanel(),
+                createExtraActions());
+        solverAndPersistenceFrame
+                .setDefaultCloseOperation(exitOnClose ? WindowConstants.EXIT_ON_CLOSE : WindowConstants.DISPOSE_ON_CLOSE);
         solverAndPersistenceFrame.init(centerForComponent);
         solverAndPersistenceFrame.setVisible(true);
     }
 
-    public SolutionBusiness<Solution_> createSolutionBusiness() {
-        SolutionBusiness<Solution_> solutionBusiness = new SolutionBusiness<>(this);
-        solutionBusiness.setSolver(createSolver());
+    public SolutionBusiness<Solution_, ?> createSolutionBusiness() {
+        SolutionBusiness<Solution_, ?> solutionBusiness = new SolutionBusiness<>(this);
+        DefaultSolverFactory<Solution_> solverFactory = (DefaultSolverFactory<Solution_>) createSolverFactory();
+        solutionBusiness.setSolver(solverFactory);
         solutionBusiness.setDataDir(determineDataDir(dataDirName));
         solutionBusiness.setSolutionFileIO(createSolutionFileIO());
         solutionBusiness.setImporters(createSolutionImporters());
@@ -133,26 +134,38 @@ public abstract class CommonApp<Solution_> extends LoggingMain {
         return solutionBusiness;
     }
 
-    protected Solver<Solution_> createSolver() {
-        SolverFactory<Solution_> solverFactory = SolverFactory.createFromXmlResource(solverConfig);
-        return solverFactory.buildSolver();
+    protected SolverFactory<Solution_> createSolverFactory() {
+        return SolverFactory.createFromXmlResource(solverConfigResource);
     }
 
     protected abstract SolutionPanel<Solution_> createSolutionPanel();
 
+    protected ExtraAction<Solution_>[] createExtraActions() {
+        return new ExtraAction[0];
+    }
+
     /**
      * Used for the unsolved and solved directories,
      * not for the import and output directories, in the data directory.
+     *
      * @return never null
      */
     public abstract SolutionFileIO<Solution_> createSolutionFileIO();
 
     protected AbstractSolutionImporter[] createSolutionImporters() {
-        return new AbstractSolutionImporter[]{};
+        return new AbstractSolutionImporter[0];
     }
 
     protected AbstractSolutionExporter createSolutionExporter() {
         return null;
+    }
+
+    public interface ExtraAction<Solution_> {
+
+        String getName();
+
+        BiConsumer<SolutionBusiness<Solution_, ?>, SolutionPanel<Solution_>> getConsumer();
+
     }
 
 }

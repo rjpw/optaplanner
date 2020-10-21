@@ -48,6 +48,11 @@ public final class ReflectionMethodMemberAccessor implements MemberAccessor {
     }
 
     @Override
+    public Class<?> getDeclaringClass() {
+        return readMethod.getDeclaringClass();
+    }
+
+    @Override
     public String getName() {
         return methodName;
     }
@@ -68,7 +73,8 @@ public final class ReflectionMethodMemberAccessor implements MemberAccessor {
             return readMethod.invoke(bean);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot call property (" + methodName
-                    + ") getterMethod (" + readMethod + ") on bean of class (" + bean.getClass() + ").", e);
+                    + ") getterMethod (" + readMethod + ") on bean of class (" + bean.getClass() + ").\n" +
+                    MemberAccessorFactory.CLASSLOADER_NUDGE_MESSAGE, e);
         } catch (InvocationTargetException e) {
             throw new IllegalStateException("The property (" + methodName
                     + ") getterMethod (" + readMethod + ") on bean of class (" + bean.getClass()
@@ -84,7 +90,7 @@ public final class ReflectionMethodMemberAccessor implements MemberAccessor {
 
     @Override
     public boolean supportSetter() {
-        return  false;
+        return false;
     }
 
     @Override

@@ -1,11 +1,11 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,32 +25,33 @@ import org.optaplanner.core.impl.constructionheuristic.scope.ConstructionHeurist
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.phase.AbstractPhase;
 import org.optaplanner.core.impl.solver.recaller.BestSolutionRecaller;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.solver.termination.Termination;
 
 /**
  * Default implementation of {@link ConstructionHeuristicPhase}.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
 public class DefaultConstructionHeuristicPhase<Solution_> extends AbstractPhase<Solution_>
         implements ConstructionHeuristicPhase<Solution_> {
 
-    protected EntityPlacer entityPlacer;
-    protected ConstructionHeuristicDecider decider;
+    protected EntityPlacer<Solution_> entityPlacer;
+    protected ConstructionHeuristicDecider<Solution_> decider;
 
     // TODO make this configurable or make it constant
     protected final boolean skipBestSolutionCloningInSteps = true;
 
     public DefaultConstructionHeuristicPhase(int phaseIndex, String logIndentation,
-            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination termination) {
+            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination<Solution_> termination) {
         super(phaseIndex, logIndentation, bestSolutionRecaller, termination);
     }
 
-    public void setEntityPlacer(EntityPlacer entityPlacer) {
+    public void setEntityPlacer(EntityPlacer<Solution_> entityPlacer) {
         this.entityPlacer = entityPlacer;
     }
 
-    public void setDecider(ConstructionHeuristicDecider decider) {
+    public void setDecider(ConstructionHeuristicDecider<Solution_> decider) {
         this.decider = decider;
     }
 
@@ -64,11 +65,11 @@ public class DefaultConstructionHeuristicPhase<Solution_> extends AbstractPhase<
     // ************************************************************************
 
     @Override
-    public void solve(DefaultSolverScope<Solution_> solverScope) {
+    public void solve(SolverScope<Solution_> solverScope) {
         ConstructionHeuristicPhaseScope<Solution_> phaseScope = new ConstructionHeuristicPhaseScope<>(solverScope);
         phaseStarted(phaseScope);
 
-        for (Placement placement : entityPlacer) {
+        for (Placement<Solution_> placement : entityPlacer) {
             ConstructionHeuristicStepScope<Solution_> stepScope = new ConstructionHeuristicStepScope<>(phaseScope);
             stepStarted(stepScope);
             decider.decideNextStep(stepScope, placement);
@@ -103,18 +104,21 @@ public class DefaultConstructionHeuristicPhase<Solution_> extends AbstractPhase<
     }
 
     private void doStep(ConstructionHeuristicStepScope<Solution_> stepScope) {
-        Move<Solution_> nextStep = stepScope.getStep();
-        nextStep.doMove(stepScope.getScoreDirector());
-        predictWorkingStepScore(stepScope, nextStep);
+        Move<Solution_> step = stepScope.getStep();
+        Move<Solution_> undoStep = step.doMove(stepScope.getScoreDirector());
+        stepScope.setUndoStep(undoStep);
+        predictWorkingStepScore(stepScope, step);
         if (!skipBestSolutionCloningInSteps) {
             // Causes a planning clone, which is expensive
             // For example, on cloud balancing 1200c-4800p this reduces performance by 18%
             bestSolutionRecaller.processWorkingSolutionDuringStep(stepScope);
+        } else {
+            stepScope.setBestScoreImproved(true);
         }
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
         entityPlacer.solvingStarted(solverScope);
         decider.solvingStarted(solverScope);
@@ -157,7 +161,7 @@ public class DefaultConstructionHeuristicPhase<Solution_> extends AbstractPhase<
         decider.phaseEnded(phaseScope);
         phaseScope.endingNow();
         logger.info("{}Construction Heuristic phase ({}) ended: time spent ({}), best score ({}),"
-                        + " score calculation speed ({}/sec), step total ({}).",
+                + " score calculation speed ({}/sec), step total ({}).",
                 logIndentation,
                 phaseIndex,
                 phaseScope.calculateSolverTimeMillisSpentUpToNow(),
@@ -167,7 +171,7 @@ public class DefaultConstructionHeuristicPhase<Solution_> extends AbstractPhase<
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         entityPlacer.solvingEnded(solverScope);
         decider.solvingEnded(solverScope);

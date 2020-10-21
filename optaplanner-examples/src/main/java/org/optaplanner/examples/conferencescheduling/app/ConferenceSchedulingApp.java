@@ -18,14 +18,15 @@ package org.optaplanner.examples.conferencescheduling.app;
 
 import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.conferencescheduling.domain.ConferenceSolution;
-import org.optaplanner.examples.conferencescheduling.persistence.ConferenceSchedulingXslxFileIO;
+import org.optaplanner.examples.conferencescheduling.persistence.ConferenceSchedulingXlsxFileIO;
+import org.optaplanner.examples.conferencescheduling.swingui.ConferenceCFPImportAction;
 import org.optaplanner.examples.conferencescheduling.swingui.ConferenceSchedulingPanel;
 import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
 public class ConferenceSchedulingApp extends CommonApp<ConferenceSolution> {
 
-    public static final String SOLVER_CONFIG
-            = "org/optaplanner/examples/conferencescheduling/solver/conferenceSchedulingSolverConfig.xml";
+    public static final String SOLVER_CONFIG =
+            "org/optaplanner/examples/conferencescheduling/solver/conferenceSchedulingSolverConfig.xml";
 
     public static final String DATA_DIR_NAME = "conferencescheduling";
 
@@ -48,7 +49,11 @@ public class ConferenceSchedulingApp extends CommonApp<ConferenceSolution> {
 
     @Override
     public SolutionFileIO<ConferenceSolution> createSolutionFileIO() {
-        return new ConferenceSchedulingXslxFileIO();
+        return new ConferenceSchedulingXlsxFileIO();
     }
 
+    @Override
+    protected ExtraAction<ConferenceSolution>[] createExtraActions() {
+        return new ExtraAction[] { new ConferenceCFPImportAction() };
+    }
 }

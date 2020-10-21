@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,14 @@ import java.util.ListIterator;
 import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class SortingEntitySelector extends AbstractCachingEntitySelector {
+public class SortingEntitySelector<Solution_> extends AbstractCachingEntitySelector<Solution_> {
 
-    protected final SelectionSorter sorter;
+    protected final SelectionSorter<Solution_, Object> sorter;
 
-    public SortingEntitySelector(EntitySelector childEntitySelector, SelectionCacheType cacheType,
-            SelectionSorter sorter) {
+    public SortingEntitySelector(EntitySelector<Solution_> childEntitySelector, SelectionCacheType cacheType,
+            SelectionSorter<Solution_, Object> sorter) {
         super(childEntitySelector, cacheType);
         this.sorter = sorter;
     }
@@ -39,7 +39,7 @@ public class SortingEntitySelector extends AbstractCachingEntitySelector {
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         super.constructCache(solverScope);
         sorter.sort(solverScope.getScoreDirector(), cachedEntityList);
         logger.trace("    Sorted cachedEntityList: size ({}), entitySelector ({}).",

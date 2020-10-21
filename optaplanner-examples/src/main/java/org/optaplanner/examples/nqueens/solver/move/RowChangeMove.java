@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.nqueens.domain.NQueens;
 import org.optaplanner.examples.nqueens.domain.Queen;
 import org.optaplanner.examples.nqueens.domain.Row;
@@ -56,6 +54,12 @@ public class RowChangeMove extends AbstractMove<NQueens> {
     }
 
     @Override
+    public RowChangeMove rebase(ScoreDirector<NQueens> destinationScoreDirector) {
+        return new RowChangeMove(destinationScoreDirector.lookUpWorkingObject(queen),
+                destinationScoreDirector.lookUpWorkingObject(toRow));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Collections.singletonList(queen);
     }
@@ -69,23 +73,18 @@ public class RowChangeMove extends AbstractMove<NQueens> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof RowChangeMove) {
-            RowChangeMove other = (RowChangeMove) o;
-            return new EqualsBuilder()
-                    .append(queen, other.queen)
-                    .append(toRow, other.toRow)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final RowChangeMove other = (RowChangeMove) o;
+        return Objects.equals(queen, other.queen) &&
+                Objects.equals(toRow, other.toRow);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(queen)
-                .append(toRow)
-                .toHashCode();
+        return Objects.hash(queen, toRow);
     }
 
     @Override

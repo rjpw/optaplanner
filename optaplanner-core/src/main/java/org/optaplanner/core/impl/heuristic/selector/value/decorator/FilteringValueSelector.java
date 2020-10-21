@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 import java.util.Iterator;
 import java.util.List;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionFilter;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
@@ -26,26 +27,28 @@ import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
-public class FilteringValueSelector extends AbstractValueSelector {
+public class FilteringValueSelector<Solution_> extends AbstractValueSelector<Solution_> {
 
-    public static ValueSelector create(ValueSelector valueSelector, List<SelectionFilter> filterList) {
+    public static <Solution_> ValueSelector<Solution_> create(ValueSelector<Solution_> valueSelector,
+            List<SelectionFilter<Solution_, Object>> filterList) {
         if (valueSelector instanceof EntityIndependentValueSelector) {
-            return new EntityIndependentFilteringValueSelector((EntityIndependentValueSelector) valueSelector,
+            return new EntityIndependentFilteringValueSelector<>(
+                    (EntityIndependentValueSelector<Solution_>) valueSelector,
                     filterList);
         } else {
-            return new FilteringValueSelector(valueSelector, filterList);
+            return new FilteringValueSelector<>(valueSelector, filterList);
         }
     }
 
-    protected final ValueSelector childValueSelector;
-    protected final List<SelectionFilter> filterList;
+    protected final ValueSelector<Solution_> childValueSelector;
+    protected final List<SelectionFilter<Solution_, Object>> filterList;
     protected final boolean bailOutEnabled;
 
-    protected ScoreDirector scoreDirector = null;
+    protected ScoreDirector<Solution_> scoreDirector = null;
 
-    protected FilteringValueSelector(ValueSelector childValueSelector, List<SelectionFilter> filterList) {
+    protected FilteringValueSelector(ValueSelector<Solution_> childValueSelector,
+            List<SelectionFilter<Solution_, Object>> filterList) {
         this.childValueSelector = childValueSelector;
         this.filterList = filterList;
         bailOutEnabled = childValueSelector.isNeverEnding();
@@ -57,19 +60,19 @@ public class FilteringValueSelector extends AbstractValueSelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
     @Override
-    public GenuineVariableDescriptor getVariableDescriptor() {
+    public GenuineVariableDescriptor<Solution_> getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 
@@ -141,8 +144,8 @@ public class FilteringValueSelector extends AbstractValueSelector {
         return childValueSelector.getSize(entity) * 10L;
     }
 
-    protected boolean accept(ScoreDirector scoreDirector, Object entity) {
-        for (SelectionFilter filter : filterList) {
+    protected boolean accept(ScoreDirector<Solution_> scoreDirector, Object entity) {
+        for (SelectionFilter<Solution_, Object> filter : filterList) {
             if (!filter.accept(scoreDirector, entity)) {
                 return false;
             }

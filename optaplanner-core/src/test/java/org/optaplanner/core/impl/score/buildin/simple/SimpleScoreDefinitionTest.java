@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,35 @@
 
 package org.optaplanner.core.impl.score.buildin.simple;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 import org.optaplanner.core.config.score.trend.InitializingScoreTrendLevel;
 import org.optaplanner.core.impl.score.trend.InitializingScoreTrend;
 
-import static org.junit.Assert.*;
-
 public class SimpleScoreDefinitionTest {
 
     @Test
+    public void getZeroScore() {
+        SimpleScore score = new SimpleScoreDefinition().getZeroScore();
+        assertThat(score).isEqualTo(SimpleScore.ZERO);
+    }
+
+    @Test
+    public void getSoftestOneScore() {
+        SimpleScore score = new SimpleScoreDefinition().getOneSoftestScore();
+        assertThat(score).isEqualTo(SimpleScore.ONE);
+    }
+
+    @Test
     public void getLevelsSize() {
-        assertEquals(1, new SimpleScoreDefinition().getLevelsSize());
+        assertThat(new SimpleScoreDefinition().getLevelsSize()).isEqualTo(1);
     }
 
     @Test
     public void getLevelLabels() {
-        assertArrayEquals(new String[]{"score"}, new SimpleScoreDefinition().getLevelLabels());
+        assertThat(new SimpleScoreDefinition().getLevelLabels()).isEqualTo(new String[] { "score" });
     }
 
     @Test
@@ -40,9 +52,9 @@ public class SimpleScoreDefinitionTest {
         SimpleScoreDefinition scoreDefinition = new SimpleScoreDefinition();
         SimpleScore optimisticBound = scoreDefinition.buildOptimisticBound(
                 InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_UP, 1),
-                SimpleScore.valueOf(-1));
-        assertEquals(0, optimisticBound.getInitScore());
-        assertEquals(Integer.MAX_VALUE, optimisticBound.getScore());
+                SimpleScore.of(-1));
+        assertThat(optimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(optimisticBound.getScore()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test
@@ -50,9 +62,9 @@ public class SimpleScoreDefinitionTest {
         SimpleScoreDefinition scoreDefinition = new SimpleScoreDefinition();
         SimpleScore optimisticBound = scoreDefinition.buildOptimisticBound(
                 InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_DOWN, 1),
-                SimpleScore.valueOf(-1));
-        assertEquals(0, optimisticBound.getInitScore());
-        assertEquals(-1, optimisticBound.getScore());
+                SimpleScore.of(-1));
+        assertThat(optimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(optimisticBound.getScore()).isEqualTo(-1);
     }
 
     @Test
@@ -60,9 +72,9 @@ public class SimpleScoreDefinitionTest {
         SimpleScoreDefinition scoreDefinition = new SimpleScoreDefinition();
         SimpleScore pessimisticBound = scoreDefinition.buildPessimisticBound(
                 InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_UP, 1),
-                SimpleScore.valueOf(-1));
-        assertEquals(0, pessimisticBound.getInitScore());
-        assertEquals(-1, pessimisticBound.getScore());
+                SimpleScore.of(-1));
+        assertThat(pessimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(pessimisticBound.getScore()).isEqualTo(-1);
     }
 
     @Test
@@ -70,9 +82,24 @@ public class SimpleScoreDefinitionTest {
         SimpleScoreDefinition scoreDefinition = new SimpleScoreDefinition();
         SimpleScore pessimisticBound = scoreDefinition.buildPessimisticBound(
                 InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_DOWN, 1),
-                SimpleScore.valueOf(-1));
-        assertEquals(0, pessimisticBound.getInitScore());
-        assertEquals(Integer.MIN_VALUE, pessimisticBound.getScore());
+                SimpleScore.of(-1));
+        assertThat(pessimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(pessimisticBound.getScore()).isEqualTo(Integer.MIN_VALUE);
+    }
+
+    @Test
+    public void divideBySanitizedDivisor() {
+        SimpleScoreDefinition scoreDefinition = new SimpleScoreDefinition();
+        SimpleScore dividend = scoreDefinition.fromLevelNumbers(2, new Number[] { 10 });
+        SimpleScore zeroDivisor = scoreDefinition.getZeroScore();
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, zeroDivisor))
+                .isEqualTo(dividend);
+        SimpleScore oneDivisor = scoreDefinition.getOneSoftestScore();
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, oneDivisor))
+                .isEqualTo(dividend);
+        SimpleScore tenDivisor = scoreDefinition.fromLevelNumbers(10, new Number[] { 10 });
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, tenDivisor))
+                .isEqualTo(scoreDefinition.fromLevelNumbers(0, new Number[] { 1 }));
     }
 
 }

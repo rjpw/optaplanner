@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,14 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 
 /**
  * A CompositeMove is composed out of multiple other moves.
  * <p>
  * Warning: each of moves in the moveList must not rely on the effect of a previous move in the moveList
  * to create its undoMove correctly.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  * @see Move
  */
@@ -117,6 +118,15 @@ public class CompositeMove<Solution_> implements Move<Solution_> {
         return new CompositeMove<>(undoMoves);
     }
 
+    @Override
+    public CompositeMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        Move<Solution_>[] rebasedMoves = new Move[moves.length];
+        for (int i = 0; i < moves.length; i++) {
+            rebasedMoves[i] = moves[i].rebase(destinationScoreDirector);
+        }
+        return new CompositeMove<>(rebasedMoves);
+    }
+
     // ************************************************************************
     // Introspection methods
     // ************************************************************************
@@ -161,7 +171,7 @@ public class CompositeMove<Solution_> implements Move<Solution_> {
         if (this == o) {
             return true;
         } else if (o instanceof CompositeMove) {
-            CompositeMove<?> other = (CompositeMove) o;
+            CompositeMove<Solution_> other = (CompositeMove<Solution_>) o;
             return Arrays.equals(moves, other.moves);
         } else {
             return false;

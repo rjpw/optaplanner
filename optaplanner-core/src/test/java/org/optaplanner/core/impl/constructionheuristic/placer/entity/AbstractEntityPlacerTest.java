@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,41 @@
 
 package org.optaplanner.core.impl.constructionheuristic.placer.entity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertCode;
+
 import java.util.Iterator;
 
 import org.optaplanner.core.impl.constructionheuristic.placer.Placement;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.generic.ChangeMove;
 
-import static org.junit.Assert.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertCode;
+public abstract class AbstractEntityPlacerTest {
 
-public class AbstractEntityPlacerTest {
-
-    public static void assertEntityPlacement(Placement placement, String entityCode, String... valueCodes) {
-        Iterator<Move> iterator = placement.iterator();
-        assertNotNull(iterator);
+    public static <Solution_> void assertEntityPlacement(Placement<Solution_> placement, String entityCode,
+            String... valueCodes) {
+        Iterator<Move<Solution_>> iterator = placement.iterator();
+        assertThat(iterator).isNotNull();
         for (String valueCode : valueCodes) {
-            assertTrue(iterator.hasNext());
-            ChangeMove<?> move = (ChangeMove) iterator.next();
+            assertThat(iterator.hasNext()).isTrue();
+            ChangeMove<Solution_> move = (ChangeMove<Solution_>) iterator.next();
             assertCode(entityCode, move.getEntity());
             assertCode(valueCode, move.getToPlanningValue());
         }
-        assertFalse(iterator.hasNext());
+        assertThat(iterator.hasNext()).isFalse();
     }
 
-    public static void assertValuePlacement(Placement placement, String valueCode, String... entityCodes) {
-        Iterator<Move> iterator = placement.iterator();
-        assertNotNull(iterator);
+    public static <Solution_> void assertValuePlacement(Placement<Solution_> placement, String valueCode,
+            String... entityCodes) {
+        Iterator<Move<Solution_>> iterator = placement.iterator();
+        assertThat(iterator).isNotNull();
         for (String entityCode : entityCodes) {
-            assertTrue(iterator.hasNext());
-            ChangeMove<?> move = (ChangeMove) iterator.next();
+            assertThat(iterator.hasNext()).isTrue();
+            ChangeMove<Solution_> move = (ChangeMove<Solution_>) iterator.next();
             assertCode(entityCode, move.getEntity());
             assertCode(valueCode, move.getToPlanningValue());
         }
-        assertFalse(iterator.hasNext());
+        assertThat(iterator.hasNext()).isFalse();
     }
 
 }

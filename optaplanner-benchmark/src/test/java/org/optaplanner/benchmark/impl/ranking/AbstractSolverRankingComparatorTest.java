@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,16 @@ import java.util.List;
 import org.optaplanner.benchmark.impl.measurement.ScoreDifferencePercentage;
 import org.optaplanner.benchmark.impl.result.ProblemBenchmarkResult;
 import org.optaplanner.benchmark.impl.result.SingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SolverBenchmarkResult;
 import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 
-
 public abstract class AbstractSolverRankingComparatorTest {
 
-    protected ProblemBenchmarkResult addProblemBenchmark(List<SingleBenchmarkResult> singleBenchmarkResultList) {
-        ProblemBenchmarkResult problemBenchmarkResult = new ProblemBenchmarkResult(null);
+    protected <Solution_> ProblemBenchmarkResult<Solution_>
+            addProblemBenchmark(List<SingleBenchmarkResult> singleBenchmarkResultList) {
+        ProblemBenchmarkResult<Solution_> problemBenchmarkResult = new ProblemBenchmarkResult<>(null);
         problemBenchmarkResult.setSingleBenchmarkResultList(singleBenchmarkResultList);
         for (SingleBenchmarkResult singleBenchmarkResult : singleBenchmarkResultList) {
             singleBenchmarkResult.setProblemBenchmarkResult(problemBenchmarkResult);
@@ -37,25 +38,28 @@ public abstract class AbstractSolverRankingComparatorTest {
         return problemBenchmarkResult;
     }
 
-    protected SingleBenchmarkResult addSingleBenchmark(List<SingleBenchmarkResult> singleBenchmarkResultList,
-            int score, int bestScore, int worstScore) {
-        return addSingleBenchmark(singleBenchmarkResultList,
-                SimpleScore.valueOf(score),
-                SimpleScore.valueOf(bestScore),
-                SimpleScore.valueOf(worstScore));
+    protected SingleBenchmarkResult addSingleBenchmark(SolverBenchmarkResult solverBenchmarkResult,
+            List<SingleBenchmarkResult> singleBenchmarkResultList, int score, int bestScore, int worstScore) {
+        return addSingleBenchmark(solverBenchmarkResult, singleBenchmarkResultList,
+                SimpleScore.of(score),
+                SimpleScore.of(bestScore),
+                SimpleScore.of(worstScore));
     }
 
-    protected SingleBenchmarkResult addSingleBenchmarkWithHardSoftLongScore(List<SingleBenchmarkResult> singleBenchmarkResultList,
+    protected SingleBenchmarkResult addSingleBenchmarkWithHardSoftLongScore(SolverBenchmarkResult solverBenchmarkResult,
+            List<SingleBenchmarkResult> singleBenchmarkResultList,
             long hardScore, long softScore, long hardBestScore, long softBestScore, long hardWorstScore, long softWorstScore) {
-        return addSingleBenchmark(singleBenchmarkResultList,
-                HardSoftLongScore.valueOf(hardScore, softScore),
-                HardSoftLongScore.valueOf(hardBestScore, softBestScore),
-                HardSoftLongScore.valueOf(hardWorstScore, softWorstScore));
+        return addSingleBenchmark(solverBenchmarkResult, singleBenchmarkResultList,
+                HardSoftLongScore.of(hardScore, softScore),
+                HardSoftLongScore.of(hardBestScore, softBestScore),
+                HardSoftLongScore.of(hardWorstScore, softWorstScore));
     }
 
-    protected <S extends Score<S>> SingleBenchmarkResult addSingleBenchmark(List<SingleBenchmarkResult> singleBenchmarkResultList,
-            S score, S bestScore, S worstScore) {
-        SingleBenchmarkResult singleBenchmarkResult = new SingleBenchmarkResult(null, null);
+    protected <Score_ extends Score<Score_>> SingleBenchmarkResult addSingleBenchmark(
+            SolverBenchmarkResult solverBenchmarkResult,
+            List<SingleBenchmarkResult> singleBenchmarkResultList,
+            Score_ score, Score_ bestScore, Score_ worstScore) {
+        SingleBenchmarkResult singleBenchmarkResult = new SingleBenchmarkResult(solverBenchmarkResult, null);
         singleBenchmarkResult.setFailureCount(0);
         singleBenchmarkResult.setAverageAndTotalScoreForTesting(score);
         singleBenchmarkResult.setWinningScoreDifference(score.subtract(bestScore));

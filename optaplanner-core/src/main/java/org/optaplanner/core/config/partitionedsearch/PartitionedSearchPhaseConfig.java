@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,52 +16,56 @@
 
 package org.optaplanner.core.config.partitionedsearch;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadFactory;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.annotations.XStreamImplicit;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElements;
+import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.config.constructionheuristic.ConstructionHeuristicPhaseConfig;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
+import org.optaplanner.core.config.exhaustivesearch.ExhaustiveSearchPhaseConfig;
 import org.optaplanner.core.config.localsearch.LocalSearchPhaseConfig;
+import org.optaplanner.core.config.phase.NoChangePhaseConfig;
 import org.optaplanner.core.config.phase.PhaseConfig;
-import org.optaplanner.core.config.solver.EnvironmentMode;
+import org.optaplanner.core.config.phase.custom.CustomPhaseConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.config.util.KeyAsElementMapConverter;
-import org.optaplanner.core.impl.partitionedsearch.DefaultPartitionedSearchPhase;
-import org.optaplanner.core.impl.partitionedsearch.PartitionedSearchPhase;
+import org.optaplanner.core.impl.io.jaxb.adapter.JaxbCustomPropertiesAdapter;
 import org.optaplanner.core.impl.partitionedsearch.partitioner.SolutionPartitioner;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.recaller.BestSolutionRecaller;
-import org.optaplanner.core.impl.solver.termination.Termination;
-import org.optaplanner.core.impl.solver.thread.DefaultSolverThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@XStreamAlias("partitionedSearch")
+@XmlType(propOrder = {
+        "solutionPartitionerClass",
+        "solutionPartitionerCustomProperties",
+        "runnablePartThreadLimit",
+        "phaseConfigList"
+})
 public class PartitionedSearchPhaseConfig extends PhaseConfig<PartitionedSearchPhaseConfig> {
 
+    public static final String XML_ELEMENT_NAME = "partitionedSearch";
     public static final String ACTIVE_THREAD_COUNT_AUTO = "AUTO";
     public static final String ACTIVE_THREAD_COUNT_UNLIMITED = "UNLIMITED";
-
-    private static final Logger logger = LoggerFactory.getLogger(PartitionedSearchPhaseConfig.class);
 
     // Warning: all fields are null (and not defaulted) because they can be inherited
     // and also because the input config file should match the output config file
 
     protected Class<? extends SolutionPartitioner<?>> solutionPartitionerClass = null;
-    @XStreamConverter(KeyAsElementMapConverter.class)
+    @XmlJavaTypeAdapter(JaxbCustomPropertiesAdapter.class)
     protected Map<String, String> solutionPartitionerCustomProperties = null;
 
-    protected Class<? extends ThreadFactory> threadFactoryClass = null;
     protected String runnablePartThreadLimit = null;
 
-    @XStreamImplicit()
+    @XmlElements({
+            @XmlElement(name = ConstructionHeuristicPhaseConfig.XML_ELEMENT_NAME,
+                    type = ConstructionHeuristicPhaseConfig.class),
+            @XmlElement(name = CustomPhaseConfig.XML_ELEMENT_NAME, type = CustomPhaseConfig.class),
+            @XmlElement(name = ExhaustiveSearchPhaseConfig.XML_ELEMENT_NAME, type = ExhaustiveSearchPhaseConfig.class),
+            @XmlElement(name = LocalSearchPhaseConfig.XML_ELEMENT_NAME, type = LocalSearchPhaseConfig.class),
+            @XmlElement(name = NoChangePhaseConfig.XML_ELEMENT_NAME, type = NoChangePhaseConfig.class),
+            @XmlElement(name = PartitionedSearchPhaseConfig.XML_ELEMENT_NAME, type = PartitionedSearchPhaseConfig.class)
+    })
     protected List<PhaseConfig> phaseConfigList = null;
 
     // ************************************************************************
@@ -84,14 +88,6 @@ public class PartitionedSearchPhaseConfig extends PhaseConfig<PartitionedSearchP
         this.solutionPartitionerCustomProperties = solutionPartitionerCustomProperties;
     }
 
-    public Class<? extends ThreadFactory> getThreadFactoryClass() {
-        return threadFactoryClass;
-    }
-
-    public void setThreadFactoryClass(Class<? extends ThreadFactory> threadFactoryClass) {
-        this.threadFactoryClass = threadFactoryClass;
-    }
-
     /**
      * Similar to a thread pool size, but instead of limiting the number of {@link Thread}s,
      * it limits the number of {@link java.lang.Thread.State#RUNNABLE runnable} {@link Thread}s to avoid consuming all
@@ -99,18 +95,19 @@ public class PartitionedSearchPhaseConfig extends PhaseConfig<PartitionedSearchP
      * <p/>
      * The number of {@link Thread}s is always equal to the number of partitions returned by
      * {@link SolutionPartitioner#splitWorkingSolution(ScoreDirector, Integer)},
-     * because otherwise some partitions would never run (especially with {@link Solver#terminateEarly() asynchronous termination}).
+     * because otherwise some partitions would never run (especially with {@link Solver#terminateEarly() asynchronous
+     * termination}).
      * If this limit (or {@link Runtime#availableProcessors()}) is lower than the number of partitions,
      * this results in a slower score calculation speed per partition {@link Solver}.
      * <p/>
      * Defaults to {@value #ACTIVE_THREAD_COUNT_AUTO} which consumes the majority
-     * but not all of the CPU cores on multi-core machines, preventing other processes (including your IDE or SSH connection)
-     * on the machine from hanging.
+     * but not all of the CPU cores on multi-core machines, to prevent a livelock that hangs other processes
+     * (such as your IDE, REST servlets threads or SSH connections) on the machine.
      * <p/>
      * Use {@value #ACTIVE_THREAD_COUNT_UNLIMITED} to give it all CPU cores.
      * This is useful if you're handling the CPU consumption on an OS level.
-     * @return null, a number, {@value #ACTIVE_THREAD_COUNT_AUTO}, {@value #ACTIVE_THREAD_COUNT_UNLIMITED}
-     * or a JavaScript calculation using {@value org.optaplanner.core.config.util.ConfigUtils#AVAILABLE_PROCESSOR_COUNT}.
+     *
+     * @return null, a number, {@value #ACTIVE_THREAD_COUNT_AUTO} or {@value #ACTIVE_THREAD_COUNT_UNLIMITED}.
      */
     public String getRunnablePartThreadLimit() {
         return runnablePartThreadLimit;
@@ -128,103 +125,23 @@ public class PartitionedSearchPhaseConfig extends PhaseConfig<PartitionedSearchP
         this.phaseConfigList = phaseConfigList;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
     @Override
-    public PartitionedSearchPhase buildPhase(int phaseIndex, HeuristicConfigPolicy solverConfigPolicy,
-            BestSolutionRecaller bestSolutionRecaller, Termination solverTermination) {
-        HeuristicConfigPolicy phaseConfigPolicy = solverConfigPolicy.createPhaseConfigPolicy();
-        DefaultPartitionedSearchPhase phase = new DefaultPartitionedSearchPhase(
-                phaseIndex, solverConfigPolicy.getLogIndentation(), bestSolutionRecaller,
-                buildPhaseTermination(phaseConfigPolicy, solverTermination));
-        phase.setSolutionPartitioner(buildSolutionPartitioner());
-        phase.setThreadFactory(buildThreadFactory());
-        phase.setRunnablePartThreadLimit(resolvedActiveThreadCount());
-        List<PhaseConfig> phaseConfigList_ = phaseConfigList;
-        if (ConfigUtils.isEmptyCollection(phaseConfigList_)) {
-            phaseConfigList_ = Arrays.asList(
-                    new ConstructionHeuristicPhaseConfig(),
-                    new LocalSearchPhaseConfig());
-        }
-        phase.setPhaseConfigList(phaseConfigList_);
-        phase.setConfigPolicy(phaseConfigPolicy.createChildThreadConfigPolicy(ChildThreadType.PART_THREAD));
-        EnvironmentMode environmentMode = phaseConfigPolicy.getEnvironmentMode();
-        if (environmentMode.isNonIntrusiveFullAsserted()) {
-            phase.setAssertStepScoreFromScratch(true);
-        }
-        if (environmentMode.isIntrusiveFastAsserted()) {
-            phase.setAssertExpectedStepScore(true);
-            phase.setAssertShadowVariablesAreNotStaleAfterStep(true);
-        }
-        return phase;
-    }
-
-    private SolutionPartitioner buildSolutionPartitioner() {
-        if (solutionPartitionerClass != null) {
-            SolutionPartitioner<?> solutionPartitioner = ConfigUtils.newInstance(this,
-                    "solutionPartitionerClass", solutionPartitionerClass);
-            ConfigUtils.applyCustomProperties(solutionPartitioner, "solutionPartitionerClass",
-                    solutionPartitionerCustomProperties);
-            return solutionPartitioner;
-        } else {
-            if (solutionPartitionerCustomProperties != null) {
-                throw new IllegalStateException("If there is no solutionPartitionerClass (" + solutionPartitionerClass
-                        + "), then there can be no solutionPartitionerCustomProperties ("
-                        + solutionPartitionerCustomProperties + ") either.");
-            }
-            // TODO
-            throw new UnsupportedOperationException();
-        }
-    }
-
-    private ThreadFactory buildThreadFactory() {
-        if (threadFactoryClass != null) {
-            return ConfigUtils.newInstance(this, "threadFactoryClass", threadFactoryClass);
-        } else {
-            return new DefaultSolverThreadFactory("PartThread");
-        }
-    }
-
-    private Integer resolvedActiveThreadCount() {
-        int availableProcessorCount = Runtime.getRuntime().availableProcessors();
-        Integer resolvedActiveThreadCount;
-        if (runnablePartThreadLimit == null || runnablePartThreadLimit.equals(ACTIVE_THREAD_COUNT_AUTO)) {
-            // Leave one for the Operating System and 1 for the solver thread, take the rest
-            resolvedActiveThreadCount = availableProcessorCount <= 2 ? 1 : availableProcessorCount - 2;
-        } else if (runnablePartThreadLimit.equals(ACTIVE_THREAD_COUNT_UNLIMITED)) {
-            resolvedActiveThreadCount = null;
-        } else {
-            resolvedActiveThreadCount = ConfigUtils.resolveThreadPoolSizeScript(
-                    "runnablePartThreadLimit", runnablePartThreadLimit, ACTIVE_THREAD_COUNT_AUTO, ACTIVE_THREAD_COUNT_UNLIMITED);
-            if (resolvedActiveThreadCount < 1) {
-                throw new IllegalArgumentException("The runnablePartThreadLimit (" + runnablePartThreadLimit
-                        + ") resulted in a resolvedActiveThreadCount (" + resolvedActiveThreadCount
-                        + ") that is lower than 1.");
-            }
-            if (resolvedActiveThreadCount > availableProcessorCount) {
-                logger.debug("The resolvedActiveThreadCount ({}) is higher than "
-                        + "the availableProcessorCount ({}), so the JVM will "
-                        + "round-robin the CPU instead.", resolvedActiveThreadCount, availableProcessorCount);
-            }
-        }
-        return resolvedActiveThreadCount;
-    }
-
-    @Override
-    public void inherit(PartitionedSearchPhaseConfig inheritedConfig) {
+    public PartitionedSearchPhaseConfig inherit(PartitionedSearchPhaseConfig inheritedConfig) {
         super.inherit(inheritedConfig);
         solutionPartitionerClass = ConfigUtils.inheritOverwritableProperty(solutionPartitionerClass,
                 inheritedConfig.getSolutionPartitionerClass());
         solutionPartitionerCustomProperties = ConfigUtils.inheritMergeableMapProperty(
                 solutionPartitionerCustomProperties, inheritedConfig.getSolutionPartitionerCustomProperties());
-        threadFactoryClass = ConfigUtils.inheritOverwritableProperty(threadFactoryClass,
-                inheritedConfig.getThreadFactoryClass());
         runnablePartThreadLimit = ConfigUtils.inheritOverwritableProperty(runnablePartThreadLimit,
                 inheritedConfig.getRunnablePartThreadLimit());
         phaseConfigList = ConfigUtils.inheritMergeableListConfig(
                 phaseConfigList, inheritedConfig.getPhaseConfigList());
+        return this;
+    }
+
+    @Override
+    public PartitionedSearchPhaseConfig copyConfig() {
+        return new PartitionedSearchPhaseConfig().inherit(this);
     }
 
 }

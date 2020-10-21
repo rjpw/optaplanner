@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.optaplanner.core.api.score.buildin.simplebigdecimal;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 import org.optaplanner.core.api.score.AbstractScore;
 import org.optaplanner.core.api.score.Score;
@@ -26,24 +27,26 @@ import org.optaplanner.core.api.score.Score;
  * This {@link Score} is based on 1 level of {@link BigDecimal} constraints.
  * <p>
  * This class is immutable.
+ *
  * @see Score
  */
 public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalScore> {
 
     public static final SimpleBigDecimalScore ZERO = new SimpleBigDecimalScore(0, BigDecimal.ZERO);
+    public static final SimpleBigDecimalScore ONE = new SimpleBigDecimalScore(0, BigDecimal.ONE);
 
     public static SimpleBigDecimalScore parseScore(String scoreString) {
         String[] scoreTokens = parseScoreTokens(SimpleBigDecimalScore.class, scoreString, "");
         int initScore = parseInitScore(SimpleBigDecimalScore.class, scoreString, scoreTokens[0]);
         BigDecimal score = parseLevelAsBigDecimal(SimpleBigDecimalScore.class, scoreString, scoreTokens[1]);
-        return valueOfUninitialized(initScore, score);
+        return ofUninitialized(initScore, score);
     }
 
-    public static SimpleBigDecimalScore valueOfUninitialized(int initScore, BigDecimal score) {
+    public static SimpleBigDecimalScore ofUninitialized(int initScore, BigDecimal score) {
         return new SimpleBigDecimalScore(initScore, score);
     }
 
-    public static SimpleBigDecimalScore valueOf(BigDecimal score) {
+    public static SimpleBigDecimalScore of(BigDecimal score) {
         return new SimpleBigDecimalScore(0, score);
     }
 
@@ -73,6 +76,7 @@ public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalS
      * The total of the broken negative constraints and fulfilled positive constraints.
      * Their weight is included in the total.
      * The score is usually a negative number because most use cases only have negative constraints.
+     *
      * @return higher is better, usually negative, 0 if no constraints are broken/fulfilled
      */
     public BigDecimal getScore() {
@@ -84,21 +88,15 @@ public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalS
     // ************************************************************************
 
     @Override
-    public SimpleBigDecimalScore toInitializedScore() {
-        return initScore == 0 ? this : new SimpleBigDecimalScore(0, score);
-    }
-
-    @Override
     public SimpleBigDecimalScore withInitScore(int newInitScore) {
-        assertNoInitScore();
         return new SimpleBigDecimalScore(newInitScore, score);
     }
 
     @Override
-    public SimpleBigDecimalScore add(SimpleBigDecimalScore augment) {
+    public SimpleBigDecimalScore add(SimpleBigDecimalScore addend) {
         return new SimpleBigDecimalScore(
-                initScore + augment.getInitScore(),
-                score.add(augment.getScore()));
+                initScore + addend.getInitScore(),
+                score.add(addend.getScore()));
     }
 
     @Override
@@ -149,13 +147,17 @@ public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalS
     }
 
     @Override
+    public boolean isFeasible() {
+        return initScore >= 0;
+    }
+
+    @Override
     public Number[] toLevelNumbers() {
-        return new Number[]{score};
+        return new Number[] { score };
     }
 
     @Override
     public boolean equals(Object o) {
-        // A direct implementation (instead of EqualsBuilder) to avoid dependencies
         if (this == o) {
             return true;
         } else if (o instanceof SimpleBigDecimalScore) {
@@ -169,17 +171,13 @@ public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalS
 
     @Override
     public int hashCode() {
-        // A direct implementation (instead of HashCodeBuilder) to avoid dependencies
-        return ((17 * 37)
-                + initScore) * 37
-                + score.stripTrailingZeros().hashCode();
+        return Objects.hash(initScore, score.stripTrailingZeros());
     }
 
     @Override
     public int compareTo(SimpleBigDecimalScore other) {
-        // A direct implementation (instead of CompareToBuilder) to avoid dependencies
         if (initScore != other.getInitScore()) {
-            return initScore < other.getInitScore() ? -1 : 1;
+            return Integer.compare(initScore, other.getInitScore());
         } else {
             return score.compareTo(other.getScore());
         }
@@ -193,11 +191,6 @@ public final class SimpleBigDecimalScore extends AbstractScore<SimpleBigDecimalS
     @Override
     public String toString() {
         return getInitPrefix() + score;
-    }
-
-    @Override
-    public boolean isCompatibleArithmeticArgument(Score otherScore) {
-        return otherScore instanceof SimpleBigDecimalScore;
     }
 
 }

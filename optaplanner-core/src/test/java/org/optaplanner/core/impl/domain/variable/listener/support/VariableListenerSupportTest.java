@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,14 @@
 
 package org.optaplanner.core.impl.domain.variable.listener.support;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.inverserelation.ExternalizedSingletonInverseVariableSupply;
@@ -31,85 +36,85 @@ import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
 import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedEntity;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedSolution;
-import org.optaplanner.core.impl.testdata.domain.chained.rich.TestdataRichChainedEntity;
-import org.optaplanner.core.impl.testdata.domain.chained.rich.TestdataRichChainedSolution;
-
-import static org.junit.Assert.assertSame;
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
+import org.optaplanner.core.impl.testdata.domain.chained.shadow.TestdataShadowingChainedEntity;
+import org.optaplanner.core.impl.testdata.domain.chained.shadow.TestdataShadowingChainedSolution;
 
 public class VariableListenerSupportTest {
 
     @Test
     public void demandBasic() {
         SolutionDescriptor<TestdataSolution> solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
-        InnerScoreDirector<TestdataSolution> scoreDirector = mock(InnerScoreDirector.class);
+        InnerScoreDirector<TestdataSolution, SimpleScore> scoreDirector = mock(InnerScoreDirector.class);
         when(scoreDirector.getSolutionDescriptor()).thenReturn(solutionDescriptor);
         TestdataSolution solution = new TestdataSolution();
-        solution.setEntityList(Collections.<TestdataEntity>emptyList());
+        solution.setEntityList(Collections.emptyList());
         when(scoreDirector.getWorkingSolution()).thenReturn(solution);
         when(scoreDirector.getSupplyManager()).thenReturn(mock(SupplyManager.class));
         VariableListenerSupport<TestdataSolution> variableListenerSupport = new VariableListenerSupport<>(scoreDirector);
         variableListenerSupport.linkVariableListeners();
 
-        VariableDescriptor variableDescriptor = solutionDescriptor.getEntityDescriptorStrict(TestdataEntity.class)
-                .getVariableDescriptor("value");
+        VariableDescriptor<TestdataSolution> variableDescriptor =
+                solutionDescriptor.getEntityDescriptorStrict(TestdataEntity.class)
+                        .getVariableDescriptor("value");
 
-        SingletonInverseVariableSupply supply1
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        SingletonInverseVariableSupply supply2
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        assertSame(supply1, supply2);
+        SingletonInverseVariableSupply supply1 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        SingletonInverseVariableSupply supply2 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        assertThat(supply2).isSameAs(supply1);
     }
 
     @Test
     public void demandChained() {
-        SolutionDescriptor<TestdataChainedSolution> solutionDescriptor
-                = TestdataChainedSolution.buildSolutionDescriptor();
-        InnerScoreDirector<TestdataChainedSolution> scoreDirector = mock(InnerScoreDirector.class);
+        SolutionDescriptor<TestdataChainedSolution> solutionDescriptor = TestdataChainedSolution.buildSolutionDescriptor();
+        InnerScoreDirector<TestdataChainedSolution, SimpleScore> scoreDirector = mock(InnerScoreDirector.class);
         when(scoreDirector.getSolutionDescriptor()).thenReturn(solutionDescriptor);
         TestdataChainedSolution solution = new TestdataChainedSolution();
-        solution.setChainedEntityList(Collections.<TestdataChainedEntity>emptyList());
+        solution.setChainedEntityList(Collections.emptyList());
         when(scoreDirector.getWorkingSolution()).thenReturn(solution);
         when(scoreDirector.getSupplyManager()).thenReturn(mock(SupplyManager.class));
-        VariableListenerSupport<TestdataChainedSolution> variableListenerSupport
-                = new VariableListenerSupport<>(scoreDirector);
+        VariableListenerSupport<TestdataChainedSolution> variableListenerSupport = new VariableListenerSupport<>(scoreDirector);
         variableListenerSupport.linkVariableListeners();
 
-        VariableDescriptor variableDescriptor = solutionDescriptor.getEntityDescriptorStrict(TestdataChainedEntity.class)
-                .getVariableDescriptor("chainedObject");
+        VariableDescriptor<TestdataChainedSolution> variableDescriptor =
+                solutionDescriptor.getEntityDescriptorStrict(TestdataChainedEntity.class)
+                        .getVariableDescriptor("chainedObject");
 
-        SingletonInverseVariableSupply supply1
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        assertInstanceOf(ExternalizedSingletonInverseVariableSupply.class, supply1);
-        SingletonInverseVariableSupply supply2
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        assertSame(supply1, supply2);
+        SingletonInverseVariableSupply supply1 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        assertThat(supply1)
+                .isInstanceOf(ExternalizedSingletonInverseVariableSupply.class);
+        SingletonInverseVariableSupply supply2 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        assertThat(supply2).isSameAs(supply1);
     }
 
     @Test
     public void demandRichChained() {
-        SolutionDescriptor<TestdataRichChainedSolution> solutionDescriptor
-                = TestdataRichChainedSolution.buildSolutionDescriptor();
-        InnerScoreDirector<TestdataRichChainedSolution> scoreDirector = mock(InnerScoreDirector.class);
+        SolutionDescriptor<TestdataShadowingChainedSolution> solutionDescriptor =
+                TestdataShadowingChainedSolution.buildSolutionDescriptor();
+        InnerScoreDirector<TestdataShadowingChainedSolution, SimpleScore> scoreDirector =
+                mock(InnerScoreDirector.class);
         when(scoreDirector.getSolutionDescriptor()).thenReturn(solutionDescriptor);
-        TestdataRichChainedSolution solution = new TestdataRichChainedSolution();
-        solution.setChainedEntityList(Collections.<TestdataRichChainedEntity>emptyList());
+        TestdataShadowingChainedSolution solution = new TestdataShadowingChainedSolution();
+        solution.setChainedEntityList(Collections.emptyList());
         when(scoreDirector.getWorkingSolution()).thenReturn(solution);
         when(scoreDirector.getSupplyManager()).thenReturn(mock(SupplyManager.class));
-        VariableListenerSupport<TestdataRichChainedSolution> variableListenerSupport
-                = new VariableListenerSupport<>(scoreDirector);
+        VariableListenerSupport<TestdataShadowingChainedSolution> variableListenerSupport =
+                new VariableListenerSupport<>(scoreDirector);
         variableListenerSupport.linkVariableListeners();
 
-        VariableDescriptor variableDescriptor = solutionDescriptor.getEntityDescriptorStrict(TestdataRichChainedEntity.class)
+        VariableDescriptor<TestdataShadowingChainedSolution> variableDescriptor = solutionDescriptor
+                .getEntityDescriptorStrict(TestdataShadowingChainedEntity.class)
                 .getVariableDescriptor("chainedObject");
 
-        SingletonInverseVariableSupply supply1
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        assertInstanceOf(SingletonInverseVariableListener.class, supply1);
-        SingletonInverseVariableSupply supply2
-                = variableListenerSupport.demand(new SingletonInverseVariableDemand(variableDescriptor));
-        assertSame(supply1, supply2);
+        SingletonInverseVariableSupply supply1 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        assertThat(supply1)
+                .isInstanceOf(SingletonInverseVariableListener.class);
+        SingletonInverseVariableSupply supply2 = variableListenerSupport
+                .demand(new SingletonInverseVariableDemand<>(variableDescriptor));
+        assertThat(supply2).isSameAs(supply1);
     }
 
 }

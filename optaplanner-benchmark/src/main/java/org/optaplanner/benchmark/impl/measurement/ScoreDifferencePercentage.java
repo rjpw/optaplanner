@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.optaplanner.benchmark.impl.measurement;
 
-import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
@@ -25,7 +24,7 @@ import org.apache.commons.lang3.LocaleUtils;
 import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.impl.score.ScoreUtils;
 
-public class ScoreDifferencePercentage implements Serializable {
+public class ScoreDifferencePercentage {
 
     public static <Score_ extends Score<Score_>> ScoreDifferencePercentage calculateScoreDifferencePercentage(
             Score_ baseScore, Score_ valueScore) {
@@ -46,7 +45,7 @@ public class ScoreDifferencePercentage implements Serializable {
     public static double calculateDifferencePercentage(double base, double value) {
         double difference = value - base;
         if (base < 0.0) {
-            return difference / - base;
+            return difference / -base;
         } else if (base == 0.0) {
             if (difference == 0.0) {
                 return 0.0;
@@ -73,15 +72,15 @@ public class ScoreDifferencePercentage implements Serializable {
     // Worker methods
     // ************************************************************************
 
-    public ScoreDifferencePercentage add(ScoreDifferencePercentage augment) {
-        if (percentageLevels.length != augment.getPercentageLevels().length) {
-            throw new IllegalStateException("The augment (" + augment + ")'s levelsLength (" +
-                    augment.getPercentageLevels().length + ") is different from the base (" +
+    public ScoreDifferencePercentage add(ScoreDifferencePercentage addend) {
+        if (percentageLevels.length != addend.getPercentageLevels().length) {
+            throw new IllegalStateException("The addend (" + addend + ")'s levelsLength (" +
+                    addend.getPercentageLevels().length + ") is different from the base (" +
                     this + ")'s levelsLength (" + percentageLevels.length + ").");
         }
         double[] newPercentageLevels = new double[percentageLevels.length];
         for (int i = 0; i < percentageLevels.length; i++) {
-            newPercentageLevels[i] = percentageLevels[i] + augment.percentageLevels[i];
+            newPercentageLevels[i] = percentageLevels[i] + addend.percentageLevels[i];
         }
         return new ScoreDifferencePercentage(newPercentageLevels);
     }

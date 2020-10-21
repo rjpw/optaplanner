@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,21 +17,19 @@ package org.optaplanner.core.impl.solver.termination;
 
 import java.util.Arrays;
 
-import org.optaplanner.core.api.score.FeasibilityScore;
 import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 import org.optaplanner.core.impl.score.ScoreUtils;
-import org.optaplanner.core.impl.score.definition.FeasibilityScoreDefinition;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.score.definition.ScoreDefinition;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
-public class BestScoreFeasibleTermination extends AbstractTermination {
+public class BestScoreFeasibleTermination<Solution_> extends AbstractTermination<Solution_> {
 
     private final int feasibleLevelsSize;
     private final double[] timeGradientWeightFeasibleNumbers;
 
-    public BestScoreFeasibleTermination(FeasibilityScoreDefinition scoreDefinition,
-            double[] timeGradientWeightFeasibleNumbers) {
+    public BestScoreFeasibleTermination(ScoreDefinition scoreDefinition, double[] timeGradientWeightFeasibleNumbers) {
         feasibleLevelsSize = scoreDefinition.getFeasibleLevelsSize();
         this.timeGradientWeightFeasibleNumbers = timeGradientWeightFeasibleNumbers;
         if (timeGradientWeightFeasibleNumbers.length != feasibleLevelsSize - 1) {
@@ -44,32 +42,31 @@ public class BestScoreFeasibleTermination extends AbstractTermination {
     }
 
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
         return isTerminated(solverScope.getBestScore());
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
-        return isTerminated(phaseScope.getBestScore());
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
+        return isTerminated((Score) phaseScope.getBestScore());
     }
 
     protected boolean isTerminated(Score bestScore) {
-        return ((FeasibilityScore) bestScore).isFeasible();
+        return bestScore.isFeasible();
     }
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         return calculateFeasibilityTimeGradient(
-                (FeasibilityScore) solverScope.getStartingInitializedScore(), (FeasibilityScore) solverScope.getBestScore());
+                solverScope.getStartingInitializedScore(), solverScope.getBestScore());
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
-        return calculateFeasibilityTimeGradient(
-                (FeasibilityScore) phaseScope.getStartingScore(), (FeasibilityScore) phaseScope.getBestScore());
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
+        return calculateFeasibilityTimeGradient((Score) phaseScope.getStartingScore(), (Score) phaseScope.getBestScore());
     }
 
-    protected double calculateFeasibilityTimeGradient(FeasibilityScore startScore, FeasibilityScore score) {
+    protected double calculateFeasibilityTimeGradient(Score startScore, Score score) {
         if (startScore == null || !startScore.isSolutionInitialized()) {
             return 0.0;
         }
@@ -90,7 +87,8 @@ public class BestScoreFeasibleTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public Termination createChildThreadTermination(DefaultSolverScope solverScope, ChildThreadType childThreadType) {
+    public Termination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
         // TODO FIXME through some sort of solverlistener and async behaviour...
         throw new UnsupportedOperationException("This terminationClass (" + getClass()
                 + ") does not yet support being used in child threads of type (" + childThreadType + ").");

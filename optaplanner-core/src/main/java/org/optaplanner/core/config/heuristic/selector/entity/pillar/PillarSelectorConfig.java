@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,23 @@
 
 package org.optaplanner.core.config.heuristic.selector.entity.pillar;
 
-import java.util.Collection;
-import java.util.List;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlType;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang3.BooleanUtils;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
 import org.optaplanner.core.config.heuristic.selector.SelectorConfig;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionOrder;
 import org.optaplanner.core.config.heuristic.selector.entity.EntitySelectorConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.heuristic.selector.entity.pillar.DefaultPillarSelector;
-import org.optaplanner.core.impl.heuristic.selector.entity.pillar.PillarSelector;
 
-import static org.apache.commons.lang3.ObjectUtils.*;
-
-@XStreamAlias("pillarSelector")
+@XmlType(propOrder = {
+        "entitySelectorConfig",
+        "minimumSubPillarSize",
+        "maximumSubPillarSize"
+})
 public class PillarSelectorConfig extends SelectorConfig<PillarSelectorConfig> {
 
-    @XStreamAlias("entitySelector")
+    @XmlElement(name = "entitySelector")
     protected EntitySelectorConfig entitySelectorConfig = null;
 
-    protected Boolean subPillarEnabled = null;
     protected Integer minimumSubPillarSize = null;
     protected Integer maximumSubPillarSize = null;
 
@@ -50,14 +42,6 @@ public class PillarSelectorConfig extends SelectorConfig<PillarSelectorConfig> {
 
     public void setEntitySelectorConfig(EntitySelectorConfig entitySelectorConfig) {
         this.entitySelectorConfig = entitySelectorConfig;
-    }
-
-    public Boolean getSubPillarEnabled() {
-        return subPillarEnabled;
-    }
-
-    public void setSubPillarEnabled(Boolean subPillarEnabled) {
-        this.subPillarEnabled = subPillarEnabled;
     }
 
     public Integer getMinimumSubPillarSize() {
@@ -76,64 +60,23 @@ public class PillarSelectorConfig extends SelectorConfig<PillarSelectorConfig> {
         this.maximumSubPillarSize = maximumSubPillarSize;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
-    /**
-     * @param configPolicy never null
-     * @param minimumCacheType never null, If caching is used (different from {@link SelectionCacheType#JUST_IN_TIME}),
-     * then it should be at least this {@link SelectionCacheType} because an ancestor already uses such caching
-     * and less would be pointless.
-     * @param inheritedSelectionOrder never null
-     * @param variableNameIncludeList sometimes null
-     * @return never null
-     */
-    public PillarSelector buildPillarSelector(HeuristicConfigPolicy configPolicy,
-            SelectionCacheType minimumCacheType, SelectionOrder inheritedSelectionOrder,
-            List<String> variableNameIncludeList) {
-        if (minimumCacheType.compareTo(SelectionCacheType.STEP) > 0) {
-            throw new IllegalArgumentException("The pillarSelectorConfig (" + this
-                    + ")'s minimumCacheType (" + minimumCacheType
-                    + ") must not be higher than " + SelectionCacheType.STEP
-                    + " because the pillars change every step.");
-        }
-        // EntitySelector uses SelectionOrder.ORIGINAL because a DefaultPillarSelector STEP caches the values
-        EntitySelectorConfig entitySelectorConfig_ = entitySelectorConfig == null ? new EntitySelectorConfig()
-                : entitySelectorConfig;
-        EntitySelector entitySelector = entitySelectorConfig_.buildEntitySelector(configPolicy,
-                minimumCacheType, SelectionOrder.ORIGINAL);
-        Collection<GenuineVariableDescriptor> variableDescriptors = deduceVariableDescriptorList(
-                entitySelector.getEntityDescriptor(), variableNameIncludeList);
-        if (BooleanUtils.isFalse(subPillarEnabled)
-                && (minimumSubPillarSize != null || maximumSubPillarSize != null)) {
-            throw new IllegalArgumentException("The pillarSelectorConfig (" + this
-                    + ") must not have subPillarEnabled (" + subPillarEnabled
-                    + ") with minimumSubPillarSize (" + minimumSubPillarSize
-                    + ") and maximumSubPillarSize (" + maximumSubPillarSize + ").");
-        }
-        return new DefaultPillarSelector(entitySelector, variableDescriptors,
-                inheritedSelectionOrder.toRandomSelectionBoolean(),
-                defaultIfNull(subPillarEnabled, true),
-                defaultIfNull(minimumSubPillarSize, 1),
-                defaultIfNull(maximumSubPillarSize, Integer.MAX_VALUE));
-    }
-
     @Override
-    public void inherit(PillarSelectorConfig inheritedConfig) {
-        super.inherit(inheritedConfig);
+    public PillarSelectorConfig inherit(PillarSelectorConfig inheritedConfig) {
         entitySelectorConfig = ConfigUtils.inheritConfig(entitySelectorConfig, inheritedConfig.getEntitySelectorConfig());
-        subPillarEnabled = ConfigUtils.inheritOverwritableProperty(subPillarEnabled,
-                inheritedConfig.getSubPillarEnabled());
         minimumSubPillarSize = ConfigUtils.inheritOverwritableProperty(minimumSubPillarSize,
                 inheritedConfig.getMinimumSubPillarSize());
         maximumSubPillarSize = ConfigUtils.inheritOverwritableProperty(maximumSubPillarSize,
                 inheritedConfig.getMaximumSubPillarSize());
+        return this;
+    }
+
+    @Override
+    public PillarSelectorConfig copyConfig() {
+        return new PillarSelectorConfig().inherit(this);
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + "(" + entitySelectorConfig + ")";
     }
-
 }

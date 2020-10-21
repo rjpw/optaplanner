@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,18 +23,18 @@ import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
 
-public abstract class AbstractOriginalChangeIterator<S extends Move> extends UpcomingSelectionIterator<S> {
+public abstract class AbstractOriginalChangeIterator<Solution_, Move_ extends Move<Solution_>>
+        extends UpcomingSelectionIterator<Move_> {
 
-    private final EntitySelector entitySelector;
-    private final ValueSelector valueSelector;
+    private final ValueSelector<Solution_> valueSelector;
 
-    private Iterator<Object> entityIterator;
+    private final Iterator<Object> entityIterator;
     private Iterator<Object> valueIterator;
 
     private Object upcomingEntity;
 
-    public AbstractOriginalChangeIterator(EntitySelector entitySelector, ValueSelector valueSelector) {
-        this.entitySelector = entitySelector;
+    public AbstractOriginalChangeIterator(EntitySelector<Solution_> entitySelector,
+            ValueSelector<Solution_> valueSelector) {
         this.valueSelector = valueSelector;
         entityIterator = entitySelector.iterator();
         // Don't do hasNext() in constructor (to avoid upcoming selections breaking mimic recording)
@@ -42,7 +42,7 @@ public abstract class AbstractOriginalChangeIterator<S extends Move> extends Upc
     }
 
     @Override
-    protected S createUpcomingSelection() {
+    protected Move_ createUpcomingSelection() {
         while (!valueIterator.hasNext()) {
             if (!entityIterator.hasNext()) {
                 return noUpcomingSelection();
@@ -54,6 +54,6 @@ public abstract class AbstractOriginalChangeIterator<S extends Move> extends Upc
         return newChangeSelection(upcomingEntity, toValue);
     }
 
-    protected abstract S newChangeSelection(Object entity, Object toValue);
+    protected abstract Move_ newChangeSelection(Object entity, Object toValue);
 
 }

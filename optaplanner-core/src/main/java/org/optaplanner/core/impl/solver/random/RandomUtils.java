@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ public class RandomUtils {
 
     /**
      * Mimics {@link Random#nextInt(int)} for longs.
+     *
      * @param random never null
      * @param n {@code > 0L}
      * @return like {@link Random#nextInt(int)} but for a long
@@ -47,6 +48,7 @@ public class RandomUtils {
 
     /**
      * Mimics {@link Random#nextInt(int)} for doubles.
+     *
      * @param random never null
      * @param n {@code > 0.0}
      * @return like {@link Random#nextInt(int)} but for a double

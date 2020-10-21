@@ -21,11 +21,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
 @XStreamAlias("ShiftDate")
-public class ShiftDate extends AbstractPersistable {
+public class ShiftDate extends AbstractPersistable implements Comparable<ShiftDate> {
 
     private static final DateTimeFormatter LABEL_FORMATTER = DateTimeFormatter.ofPattern("E d MMM");
 
@@ -92,4 +93,8 @@ public class ShiftDate extends AbstractPersistable {
         return date.format(DateTimeFormatter.ISO_DATE);
     }
 
+    @Override
+    public int compareTo(ShiftDate o) {
+        return this.getDate().compareTo(o.getDate());
+    }
 }

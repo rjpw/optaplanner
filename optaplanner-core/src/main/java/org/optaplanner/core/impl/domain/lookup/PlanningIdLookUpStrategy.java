@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.optaplanner.core.api.domain.lookup.LookUpStrategyType;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
 import org.optaplanner.core.impl.domain.common.accessor.MemberAccessor;
 
 public class PlanningIdLookUpStrategy implements LookUpStrategy {
@@ -55,6 +56,21 @@ public class PlanningIdLookUpStrategy implements LookUpStrategy {
     @Override
     public <E> E lookUpWorkingObject(Map<Object, Object> idToWorkingObjectMap, E externalObject) {
         Object planningId = extractPlanningId(externalObject);
+        E workingObject = (E) idToWorkingObjectMap.get(planningId);
+        if (workingObject == null) {
+            throw new IllegalStateException("The externalObject (" + externalObject + ") with planningId (" + planningId
+                    + ") has no known workingObject (" + workingObject + ").\n"
+                    + "Maybe the workingObject was never added because the planning solution doesn't have a @"
+                    + ProblemFactCollectionProperty.class.getSimpleName()
+                    + " annotation on a member with instances of the externalObject's class ("
+                    + externalObject.getClass() + ").");
+        }
+        return workingObject;
+    }
+
+    @Override
+    public <E> E lookUpWorkingObjectIfExists(Map<Object, Object> idToWorkingObjectMap, E externalObject) {
+        Object planningId = extractPlanningId(externalObject);
         return (E) idToWorkingObjectMap.get(planningId);
     }
 
@@ -65,8 +81,9 @@ public class PlanningIdLookUpStrategy implements LookUpStrategy {
                     + ") of the member (" + planningIdMemberAccessor + ") of the class (" + externalObject.getClass()
                     + ") on externalObject (" + externalObject
                     + ") must not be null.\n"
-                    + "Maybe initialize the planningId of the original object before solving" +
-                    " or remove the " + PlanningId.class.getSimpleName() + " annotation"
+                    + "Maybe initialize the planningId of the class (" + externalObject.getClass().getSimpleName()
+                    + ") instance (" + externalObject + ") before solving.\n" +
+                    "Maybe remove the " + PlanningId.class.getSimpleName() + " annotation"
                     + " or change the " + PlanningSolution.class.getSimpleName() + " annotation's "
                     + LookUpStrategyType.class.getSimpleName() + ".");
         }

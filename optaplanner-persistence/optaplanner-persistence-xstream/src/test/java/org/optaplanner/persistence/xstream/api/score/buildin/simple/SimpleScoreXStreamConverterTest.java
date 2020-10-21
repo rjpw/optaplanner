@@ -16,19 +16,20 @@
 
 package org.optaplanner.persistence.xstream.api.score.buildin.simple;
 
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 import org.optaplanner.persistence.xstream.api.score.AbstractScoreXStreamConverterTest;
+
+import com.thoughtworks.xstream.annotations.XStreamConverter;
 
 public class SimpleScoreXStreamConverterTest extends AbstractScoreXStreamConverterTest {
 
     @Test
     public void serializeAndDeserialize() {
         assertSerializeAndDeserialize(null, new TestSimpleScoreWrapper(null));
-        SimpleScore score = SimpleScore.valueOf(1234);
+        SimpleScore score = SimpleScore.of(1234);
         assertSerializeAndDeserialize(score, new TestSimpleScoreWrapper(score));
-        score = SimpleScore.valueOfUninitialized(-7, 1234);
+        score = SimpleScore.ofUninitialized(-7, 1234);
         assertSerializeAndDeserialize(score, new TestSimpleScoreWrapper(score));
     }
 

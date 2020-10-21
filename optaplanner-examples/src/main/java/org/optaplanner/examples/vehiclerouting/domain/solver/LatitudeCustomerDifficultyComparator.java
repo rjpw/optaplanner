@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,24 @@
 
 package org.optaplanner.examples.vehiclerouting.domain.solver;
 
-import java.io.Serializable;
 import java.util.Comparator;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.optaplanner.examples.vehiclerouting.domain.Customer;
-
 
 /**
  * On large datasets, the constructed solution looks like a zebra crossing.
  */
-public class LatitudeCustomerDifficultyComparator implements Comparator<Customer>, Serializable {
+public class LatitudeCustomerDifficultyComparator implements Comparator<Customer> {
+
+    private static final Comparator<Customer> COMPARATOR = Comparator
+            .comparingDouble((Customer customer) -> customer.getLocation().getLatitude())
+            .thenComparingDouble(customer -> customer.getLocation().getLongitude())
+            .thenComparingInt(Customer::getDemand)
+            .thenComparingLong(Customer::getId);
 
     @Override
     public int compare(Customer a, Customer b) {
-        return new CompareToBuilder()
-                .append(a.getLocation().getLatitude(), b.getLocation().getLatitude())
-                .append(a.getLocation().getLongitude(), b.getLocation().getLongitude())
-                .append(a.getDemand(), b.getDemand())
-                .append(a.getId(), b.getId())
-                .toComparison();
+        return COMPARATOR.compare(a, b);
     }
 
 }

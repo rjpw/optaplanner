@@ -1,11 +1,11 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,39 +18,39 @@ package org.optaplanner.core.impl.score.director.drools;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.function.Function;
 
-import org.drools.core.common.AgendaItem;
+import org.kie.api.definition.rule.Rule;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
-import org.kie.api.runtime.rule.Match;
-import org.kie.internal.event.rule.RuleEventListener;
 import org.kie.internal.event.rule.RuleEventManager;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.api.score.constraint.ConstraintMatchTotal;
 import org.optaplanner.core.api.score.constraint.Indictment;
-import org.optaplanner.core.api.score.holder.AbstractScoreHolder.ConstraintActivationUnMatchListener;
-import org.optaplanner.core.api.score.holder.ScoreHolder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
 import org.optaplanner.core.impl.score.director.AbstractScoreDirector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.holder.AbstractScoreHolder;
 
 /**
  * Drools implementation of {@link ScoreDirector}, which directs the Rule Engine to calculate the {@link Score}
  * of the {@link PlanningSolution working solution}.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ * @param <Score_> the score type to go with the solution
  * @see ScoreDirector
  */
-public class DroolsScoreDirector<Solution_>
-        extends AbstractScoreDirector<Solution_, DroolsScoreDirectorFactory<Solution_>> {
+public class DroolsScoreDirector<Solution_, Score_ extends Score<Score_>>
+        extends AbstractScoreDirector<Solution_, Score_, DroolsScoreDirectorFactory<Solution_, Score_>> {
 
     public static final String GLOBAL_SCORE_HOLDER_KEY = "scoreHolder";
 
     protected KieSession kieSession;
-    protected ScoreHolder workingScoreHolder;
+    protected AbstractScoreHolder<Score_> scoreHolder;
 
-    public DroolsScoreDirector(DroolsScoreDirectorFactory<Solution_> scoreDirectorFactory,
+    public DroolsScoreDirector(DroolsScoreDirectorFactory<Solution_, Score_> scoreDirectorFactory,
             boolean lookUpEnabled, boolean constraintMatchEnabledPreference) {
         super(scoreDirectorFactory, lookUpEnabled, constraintMatchEnabledPreference);
     }
@@ -74,9 +74,8 @@ public class DroolsScoreDirector<Solution_>
             kieSession.dispose();
         }
         kieSession = scoreDirectorFactory.newKieSession();
-        ((RuleEventManager) kieSession).addEventListener(new OptaplannerRuleEventListener());
-        workingScoreHolder = getScoreDefinition().buildScoreHolder(constraintMatchEnabledPreference);
-        kieSession.setGlobal(GLOBAL_SCORE_HOLDER_KEY, workingScoreHolder);
+        ((RuleEventManager) kieSession).addEventListener(new OptaPlannerRuleEventListener());
+        resetScoreHolder();
         // TODO Adjust when uninitialized entities from getWorkingFacts get added automatically too (and call afterEntityAdded)
         Collection<Object> workingFacts = getWorkingFacts();
         for (Object fact : workingFacts) {
@@ -84,27 +83,15 @@ public class DroolsScoreDirector<Solution_>
         }
     }
 
-    private static final class OptaplannerRuleEventListener implements RuleEventListener {
-
-        @Override
-        public void onUpdateMatch(Match match) {
-            undoPreviousMatch((AgendaItem) match);
-        }
-
-        @Override
-        public void onDeleteMatch(Match match) {
-            undoPreviousMatch((AgendaItem) match);
-        }
-
-        public void undoPreviousMatch(AgendaItem agendaItem) {
-            Object callback = agendaItem.getCallback();
-            // Some rules don't have a callback because their RHS doesn't do addConstraintMatch()
-            if (callback instanceof ConstraintActivationUnMatchListener) {
-                ((ConstraintActivationUnMatchListener) callback).run();
-                agendaItem.setCallback(null);
-            }
-        }
-
+    private void resetScoreHolder() {
+        scoreHolder = getScoreDefinition().buildScoreHolder(constraintMatchEnabledPreference);
+        scoreDirectorFactory.getRuleToConstraintWeightExtractorMap().forEach(
+                (Rule rule, Function<Solution_, Score_> extractor) -> {
+                    Score_ constraintWeight = extractor.apply(workingSolution);
+                    getSolutionDescriptor().validateConstraintWeight(rule.getPackageName(), rule.getName(), constraintWeight);
+                    scoreHolder.configureConstraintWeight(rule, constraintWeight);
+                });
+        kieSession.setGlobal(GLOBAL_SCORE_HOLDER_KEY, scoreHolder);
     }
 
     public Collection<Object> getWorkingFacts() {
@@ -112,48 +99,39 @@ public class DroolsScoreDirector<Solution_>
     }
 
     @Override
-    public Score calculateScore() {
+    public Score_ calculateScore() {
         variableListenerSupport.assertNotificationQueuesAreEmpty();
         kieSession.fireAllRules();
-        Score score = workingScoreHolder.extractScore(workingInitScore);
+        Score_ score = scoreHolder.extractScore(workingInitScore);
         setCalculatedScore(score);
         return score;
     }
 
     @Override
     public boolean isConstraintMatchEnabled() {
-        return workingScoreHolder.isConstraintMatchEnabled();
+        return scoreHolder.isConstraintMatchEnabled();
     }
 
     @Override
-    public Collection<ConstraintMatchTotal> getConstraintMatchTotals() {
+    public Map<String, ConstraintMatchTotal<Score_>> getConstraintMatchTotalMap() {
         if (workingSolution == null) {
             throw new IllegalStateException(
-                    "The method setWorkingSolution() must be called before the method getConstraintMatchTotals().");
+                    "The method setWorkingSolution() must be called before the method getConstraintMatchTotalMap().");
         }
+        // Notice that we don't trigger the variable listeners
         kieSession.fireAllRules();
-        return workingScoreHolder.getConstraintMatchTotals();
+        return scoreHolder.getConstraintMatchTotalMap();
     }
 
     @Override
-    public Map<Object, Indictment> getIndictmentMap() {
+    public Map<Object, Indictment<Score_>> getIndictmentMap() {
         if (workingSolution == null) {
             throw new IllegalStateException(
                     "The method setWorkingSolution() must be called before the method getIndictmentMap().");
         }
+        // Notice that we don't trigger the variable listeners
         kieSession.fireAllRules();
-        return workingScoreHolder.getIndictmentMap();
-    }
-
-    @Override
-    public DroolsScoreDirector<Solution_> clone() {
-        // TODO experiment with serializing the KieSession to clone it and its entities but not its other facts.
-        // See drools-compiler's test SerializationHelper.getSerialisedStatefulKnowledgeSession(...)
-        // and use an identity FactFactory that:
-        // - returns the reference for a non-@PlanningEntity fact
-        // - returns a clone for a @PlanningEntity fact (Pitfall: chained planning entities)
-        // Note: currently that will break incremental score calculation, but future drools versions might fix that
-        return (DroolsScoreDirector<Solution_>) super.clone();
+        return scoreHolder.getIndictmentMap();
     }
 
     @Override
@@ -225,7 +203,6 @@ public class DroolsScoreDirector<Solution_>
         kieSession.delete(factHandle);
         super.afterEntityRemoved(entityDescriptor, entity);
     }
-
 
     // ************************************************************************
     // Problem fact add/change/remove methods

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,14 +32,15 @@ import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
 
 /**
  * Abstract superclass for all Tabu Acceptors.
+ *
  * @see Acceptor
  */
-public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
+public abstract class AbstractTabuAcceptor<Solution_> extends AbstractAcceptor<Solution_> {
 
     protected final String logIndentation;
 
-    protected TabuSizeStrategy tabuSizeStrategy = null;
-    protected TabuSizeStrategy fadingTabuSizeStrategy = null;
+    protected TabuSizeStrategy<Solution_> tabuSizeStrategy = null;
+    protected TabuSizeStrategy<Solution_> fadingTabuSizeStrategy = null;
     protected boolean aspirationEnabled = true;
 
     protected boolean assertTabuHashCodeCorrectness = false;
@@ -54,11 +55,11 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
         this.logIndentation = logIndentation;
     }
 
-    public void setTabuSizeStrategy(TabuSizeStrategy tabuSizeStrategy) {
+    public void setTabuSizeStrategy(TabuSizeStrategy<Solution_> tabuSizeStrategy) {
         this.tabuSizeStrategy = tabuSizeStrategy;
     }
 
-    public void setFadingTabuSizeStrategy(TabuSizeStrategy fadingTabuSizeStrategy) {
+    public void setFadingTabuSizeStrategy(TabuSizeStrategy<Solution_> fadingTabuSizeStrategy) {
         this.fadingTabuSizeStrategy = fadingTabuSizeStrategy;
     }
 
@@ -75,19 +76,20 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(LocalSearchPhaseScope phaseScope) {
+    public void phaseStarted(LocalSearchPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
-        LocalSearchStepScope lastCompletedStepScope = phaseScope.getLastCompletedStepScope();
+        LocalSearchStepScope<Solution_> lastCompletedStepScope = phaseScope.getLastCompletedStepScope();
         // Tabu sizes do not change during stepStarted(), because they must be in sync with the tabuSequenceList.size()
         workingTabuSize = tabuSizeStrategy == null ? 0 : tabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
-        workingFadingTabuSize = fadingTabuSizeStrategy == null ? 0 : fadingTabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
+        workingFadingTabuSize = fadingTabuSizeStrategy == null ? 0
+                : fadingTabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
         int totalTabuListSize = workingTabuSize + workingFadingTabuSize; // is at least 1
         tabuToStepIndexMap = new HashMap<>(totalTabuListSize);
         tabuSequenceDeque = new ArrayDeque<>();
     }
 
     @Override
-    public void phaseEnded(LocalSearchPhaseScope phaseScope) {
+    public void phaseEnded(LocalSearchPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         tabuToStepIndexMap = null;
         tabuSequenceDeque = null;
@@ -96,7 +98,7 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     }
 
     @Override
-    public void stepEnded(LocalSearchStepScope stepScope) {
+    public void stepEnded(LocalSearchStepScope<Solution_> stepScope) {
         super.stepEnded(stepScope);
         // Tabu sizes do not change during stepStarted(), because they must be in sync with the tabuSequenceList.size()
         workingTabuSize = tabuSizeStrategy == null ? 0 : tabuSizeStrategy.determineTabuSize(stepScope);
@@ -135,7 +137,7 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     }
 
     @Override
-    public boolean isAccepted(LocalSearchMoveScope moveScope) {
+    public boolean isAccepted(LocalSearchMoveScope<Solution_> moveScope) {
         int maximumTabuStepIndex = locateMaximumTabStepIndex(moveScope);
         if (maximumTabuStepIndex < 0) {
             // The move isn't tabu at all
@@ -171,7 +173,7 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
         return accepted;
     }
 
-    private int locateMaximumTabStepIndex(LocalSearchMoveScope moveScope) {
+    private int locateMaximumTabStepIndex(LocalSearchMoveScope<Solution_> moveScope) {
         Collection<? extends Object> checkingTabus = findTabu(moveScope);
         int maximumTabuStepIndex = -1;
         for (Object checkingTabu : checkingTabus) {
@@ -211,8 +213,8 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
         return ((double) (workingFadingTabuSize - fadingTabuStepCount)) / ((double) (workingFadingTabuSize + 1));
     }
 
-    protected abstract Collection<? extends Object> findTabu(LocalSearchMoveScope moveScope);
+    protected abstract Collection<? extends Object> findTabu(LocalSearchMoveScope<Solution_> moveScope);
 
-    protected abstract Collection<? extends Object> findNewTabu(LocalSearchStepScope stepScope);
+    protected abstract Collection<? extends Object> findNewTabu(LocalSearchStepScope<Solution_> stepScope);
 
 }

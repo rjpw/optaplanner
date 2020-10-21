@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,119 +16,42 @@
 
 package org.optaplanner.core.api.score.constraint;
 
-import java.io.Serializable;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.ScoreExplanation;
 
 /**
- * Retrievable from {@link ScoreDirector#getIndictmentMap()}.
+ * Explains the {@link Score} of a {@link PlanningSolution}, from the opposite side than {@link ConstraintMatchTotal}.
+ * Retrievable from {@link ScoreExplanation#getIndictmentMap()}.
+ * 
+ * @param <Score_> the actual score type
  */
-public final class Indictment implements Serializable, Comparable<Indictment> {
-
-    protected final Object justification;
-
-    protected final Set<ConstraintMatch> constraintMatchSet;
-    protected Score scoreTotal;
-
-    /**
-     * @param justification never null
-     * @param zeroScore never null
-     */
-    public Indictment(Object justification, Score zeroScore) {
-        this.justification = justification;
-        constraintMatchSet = new LinkedHashSet<>();
-        scoreTotal = zeroScore;
-    }
+public interface Indictment<Score_ extends Score<Score_>> {
 
     /**
      * @return never null
      */
-    public Object getJustification() {
-        return justification;
-    }
+    Object getJustification();
 
     /**
      * @return never null
      */
-    public Set<ConstraintMatch> getConstraintMatchSet() {
-        return constraintMatchSet;
-    }
+    Set<ConstraintMatch<Score_>> getConstraintMatchSet();
 
     /**
      * @return {@code >= 0}
      */
-    public int getConstraintMatchCount() {
+    default int getConstraintMatchCount() {
         return getConstraintMatchSet().size();
     }
 
     /**
+     * Sum of the {@link #getConstraintMatchSet()}'s {@link ConstraintMatch#getScore()}.
+     *
      * @return never null
      */
-    public Score getScoreTotal() {
-        return scoreTotal;
-    }
-
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
-
-    public void addConstraintMatch(ConstraintMatch constraintMatch) {
-        scoreTotal = scoreTotal.add(constraintMatch.getScore());
-        boolean added = constraintMatchSet.add(constraintMatch);
-        if (!added) {
-            throw new IllegalStateException("The indictment (" + this
-                    + ") could not add constraintMatch (" + constraintMatch
-                    + ") to its constraintMatchSet (" + constraintMatchSet + ").");
-        }
-    }
-
-    public void removeConstraintMatch(ConstraintMatch constraintMatch) {
-        scoreTotal = scoreTotal.subtract(constraintMatch.getScore());
-        boolean removed = constraintMatchSet.remove(constraintMatch);
-        if (!removed) {
-            throw new IllegalStateException("The indictment (" + this
-                    + ") could not remove constraintMatch (" + constraintMatch
-                    + ") from its constraintMatchSet (" + constraintMatchSet + ").");
-        }
-    }
-
-    // ************************************************************************
-    // Infrastructure methods
-    // ************************************************************************
-
-    @Override
-    public int compareTo(Indictment other) {
-        if (!(justification instanceof Comparable)) {
-            throw new IllegalStateException("The justification (" + justification + ") does not implement "
-                    + Comparable.class.getSimpleName() + ", so it cannot be compared with otherJustification ("
-                    + other.justification + ").");
-        }
-        return ((Comparable) justification).compareTo(other.justification);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof Indictment) {
-            Indictment other = (Indictment) o;
-            return justification.equals(other.justification);
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return justification.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return justification + "=" + scoreTotal;
-    }
+    Score_ getScore();
 
 }

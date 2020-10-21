@@ -11,11 +11,11 @@
   </inheritedSolverBenchmark>
 
 
-<#list ['JDK', 'MERSENNE_TWISTER', 'WELL512A', 'WELL1024A', 'WELL19937C', 'WELL44497B'] as randomType>
+  <#list ['JDK', 'MERSENNE_TWISTER', 'WELL512A', 'WELL1024A', 'WELL19937C', 'WELL44497B'] as randomType>
   <solverBenchmark>
     <name>Cloud Balancing Late Acceptance ${randomType}</name>
     <problemBenchmarks>
-      <xStreamAnnotatedClass>org.optaplanner.examples.cloudbalancing.domain.CloudBalance</xStreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.cloudbalancing.persistence.CloudBalanceXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/cloudbalancing/unsolved/200computers-600processes.xml</inputSolutionFile>
       <inputSolutionFile>data/cloudbalancing/unsolved/800computers-2400processes.xml</inputSolutionFile>
     </problemBenchmarks>
@@ -24,7 +24,7 @@
       <entityClass>org.optaplanner.examples.cloudbalancing.domain.CloudProcess</entityClass>
       <randomType>${randomType}</randomType>
       <scoreDirectorFactory>
-        <scoreDrl>org/optaplanner/examples/cloudbalancing/solver/cloudBalancingScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/cloudbalancing/solver/cloudBalancingConstraints.drl</scoreDrl>
         <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
       </scoreDirectorFactory>
       <constructionHeuristic>
@@ -78,7 +78,7 @@
   <solverBenchmark>
     <name>Course Scheduling Late Acceptance ${randomType}</name>
     <problemBenchmarks>
-      <xStreamAnnotatedClass>org.optaplanner.examples.curriculumcourse.domain.CourseSchedule</xStreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp07.xml</inputSolutionFile>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp08.xml</inputSolutionFile>
     </problemBenchmarks>
@@ -87,7 +87,7 @@
       <entityClass>org.optaplanner.examples.curriculumcourse.domain.Lecture</entityClass>
       <randomType>${randomType}</randomType>
       <scoreDirectorFactory>
-        <scoreDrl>org/optaplanner/examples/curriculumcourse/solver/curriculumCourseScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/curriculumcourse/solver/curriculumCourseConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
@@ -111,7 +111,7 @@
   <solverBenchmark>
     <name>Examination Tabu Search ${randomType}</name>
     <problemBenchmarks>
-      <xStreamAnnotatedClass>org.optaplanner.examples.examination.domain.Examination</xStreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.examination.persistence.ExaminationXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/examination/unsolved/exam_comp_set2.xml</inputSolutionFile>
       <inputSolutionFile>data/examination/unsolved/exam_comp_set3.xml</inputSolutionFile>
     </problemBenchmarks>
@@ -122,7 +122,7 @@
       <entityClass>org.optaplanner.examples.examination.domain.FollowingExam</entityClass>
       <randomType>${randomType}</randomType>
       <scoreDirectorFactory>
-        <scoreDrl>org/optaplanner/examples/examination/solver/examinationScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/examination/solver/examinationConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <constructionHeuristic>
         <queuedEntityPlacer>
@@ -187,7 +187,7 @@
   <solverBenchmark>
     <name>Nurse Rostering Tabu Search ${randomType}</name>
     <problemBenchmarks>
-      <xStreamAnnotatedClass>org.optaplanner.examples.nurserostering.domain.NurseRoster</xStreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.nurserostering.persistence.NurseRosterXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/nurserostering/unsolved/medium01.xml</inputSolutionFile>
       <inputSolutionFile>data/nurserostering/unsolved/medium_hint01.xml</inputSolutionFile>
     </problemBenchmarks>
@@ -196,7 +196,7 @@
       <entityClass>org.optaplanner.examples.nurserostering.domain.ShiftAssignment</entityClass>
       <randomType>${randomType}</randomType>
       <scoreDirectorFactory>
-        <scoreDrl>org/optaplanner/examples/nurserostering/solver/nurseRosteringScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/nurserostering/solver/nurseRosteringConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <constructionHeuristic>
         <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
@@ -204,17 +204,35 @@
       <localSearch>
         <unionMoveSelector>
           <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
             <cacheType>STEP</cacheType>
             <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentPillarPartSwapMoveFactory</moveListFactoryClass>
           </moveListFactory>
+          <changeMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </changeMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </swapMoveSelector>
+          <pillarChangeMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarChangeMoveSelector>
+          <pillarSwapMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarSwapMoveSelector>
         </unionMoveSelector>
         <acceptor>
           <entityTabuSize>7</entityTabuSize>
@@ -228,7 +246,7 @@
   <solverBenchmark>
     <name>TravelingTournament Tabu Search ${randomType}</name>
     <problemBenchmarks>
-      <xStreamAnnotatedClass>org.optaplanner.examples.travelingtournament.domain.TravelingTournament</xStreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/travelingtournament/unsolved/1-nl14.xml</inputSolutionFile>
     </problemBenchmarks>
     <solver>
@@ -236,7 +254,7 @@
       <entityClass>org.optaplanner.examples.travelingtournament.domain.Match</entityClass>
       <randomType>${randomType}</randomType>
       <scoreDirectorFactory>
-        <scoreDrl>org/optaplanner/examples/travelingtournament/solver/travelingTournamentScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/travelingtournament/solver/travelingTournamentConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <localSearch>
         <unionMoveSelector>
@@ -252,11 +270,10 @@
           </moveListFactory>
         </unionMoveSelector>
         <acceptor>
-          <solutionTabuSize>1500</solutionTabuSize>
-          <moveTabuSize>7</moveTabuSize>
+          <simulatedAnnealingStartingTemperature>2hard/10000soft</simulatedAnnealingStartingTemperature>
         </acceptor>
         <forager>
-          <!-- Real world problems require to use of <acceptedCountLimit> -->
+          <acceptedCountLimit>4</acceptedCountLimit>
         </forager>
       </localSearch>
     </solver>

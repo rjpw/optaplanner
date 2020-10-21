@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.optaplanner.core.api.domain.lookup.PlanningId;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 
 /**
  * @see PlanningId
@@ -60,9 +60,11 @@ public class LookUpManager {
 
     /**
      * As defined by {@link ScoreDirector#lookUpWorkingObject(Object)}.
+     *
      * @param externalObject sometimes null
-     * @return null if externalObject is null or if there is no workingObject for externalObject
-     * @throws IllegalArgumentException if it cannot be looked up or if the externalObject's class is not supported
+     * @return null if externalObject is null
+     * @throws IllegalArgumentException if there is no workingObject for externalObject, if it cannot be looked up
+     *         or if the externalObject's class is not supported
      * @throws IllegalStateException if it cannot be looked up
      * @param <E> the object type
      */
@@ -72,6 +74,23 @@ public class LookUpManager {
         }
         LookUpStrategy lookUpStrategy = lookUpStrategyResolver.determineLookUpStrategy(externalObject);
         return lookUpStrategy.lookUpWorkingObject(idToWorkingObjectMap, externalObject);
+    }
+
+    /**
+     * As defined by {@link ScoreDirector#lookUpWorkingObjectOrReturnNull(Object)}.
+     *
+     * @param externalObject sometimes null
+     * @return null if externalObject is null or if there is no workingObject for externalObject
+     * @throws IllegalArgumentException if it cannot be looked up or if the externalObject's class is not supported
+     * @throws IllegalStateException if it cannot be looked up
+     * @param <E> the object type
+     */
+    public <E> E lookUpWorkingObjectOrReturnNull(E externalObject) {
+        if (externalObject == null) {
+            return null;
+        }
+        LookUpStrategy lookUpStrategy = lookUpStrategyResolver.determineLookUpStrategy(externalObject);
+        return lookUpStrategy.lookUpWorkingObjectIfExists(idToWorkingObjectMap, externalObject);
     }
 
 }

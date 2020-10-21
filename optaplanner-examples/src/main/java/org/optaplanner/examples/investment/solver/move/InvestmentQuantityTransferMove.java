@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.investment.domain.AssetClassAllocation;
 import org.optaplanner.examples.investment.domain.InvestmentSolution;
 
@@ -31,7 +31,8 @@ public class InvestmentQuantityTransferMove extends AbstractMove<InvestmentSolut
     private final AssetClassAllocation toAssetClassAllocation;
     private final long transferMillis;
 
-    public InvestmentQuantityTransferMove(AssetClassAllocation fromAssetClassAllocation, AssetClassAllocation toAssetClassAllocation, long transferMillis) {
+    public InvestmentQuantityTransferMove(AssetClassAllocation fromAssetClassAllocation,
+            AssetClassAllocation toAssetClassAllocation, long transferMillis) {
         this.fromAssetClassAllocation = fromAssetClassAllocation;
         this.toAssetClassAllocation = toAssetClassAllocation;
         this.transferMillis = transferMillis;
@@ -55,6 +56,14 @@ public class InvestmentQuantityTransferMove extends AbstractMove<InvestmentSolut
         scoreDirector.beforeVariableChanged(toAssetClassAllocation, "quantityMillis");
         toAssetClassAllocation.setQuantityMillis(toAssetClassAllocation.getQuantityMillis() + transferMillis);
         scoreDirector.afterVariableChanged(toAssetClassAllocation, "quantityMillis");
+    }
+
+    @Override
+    public InvestmentQuantityTransferMove rebase(ScoreDirector<InvestmentSolution> destinationScoreDirector) {
+        return new InvestmentQuantityTransferMove(
+                destinationScoreDirector.lookUpWorkingObject(fromAssetClassAllocation),
+                destinationScoreDirector.lookUpWorkingObject(toAssetClassAllocation),
+                transferMillis);
     }
 
     @Override

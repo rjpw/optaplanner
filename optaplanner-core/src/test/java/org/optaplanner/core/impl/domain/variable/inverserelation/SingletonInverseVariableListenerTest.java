@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,59 +16,65 @@
 
 package org.optaplanner.core.impl.domain.variable.inverserelation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+
 import java.util.Arrays;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.ShadowVariableDescriptor;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.testdata.domain.chained.rich.TestdataRichChainedAnchor;
-import org.optaplanner.core.impl.testdata.domain.chained.rich.TestdataRichChainedEntity;
-import org.optaplanner.core.impl.testdata.domain.chained.rich.TestdataRichChainedSolution;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.testdata.domain.chained.shadow.TestdataShadowingChainedAnchor;
+import org.optaplanner.core.impl.testdata.domain.chained.shadow.TestdataShadowingChainedEntity;
+import org.optaplanner.core.impl.testdata.domain.chained.shadow.TestdataShadowingChainedSolution;
 
 public class SingletonInverseVariableListenerTest {
 
     @Test
     public void chainedEntity() {
-        SolutionDescriptor solutionDescriptor = TestdataRichChainedSolution.buildSolutionDescriptor();
-        EntityDescriptor entityDescriptor = solutionDescriptor.findEntityDescriptorOrFail(TestdataRichChainedEntity.class);
-        ShadowVariableDescriptor nextEntityVariableDescriptor = entityDescriptor.getShadowVariableDescriptor("nextEntity");
-        SingletonInverseVariableListener variableListener = new SingletonInverseVariableListener(
-                (InverseRelationShadowVariableDescriptor) nextEntityVariableDescriptor,
-                entityDescriptor.getGenuineVariableDescriptor("chainedObject"));
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        SolutionDescriptor<TestdataShadowingChainedSolution> solutionDescriptor =
+                TestdataShadowingChainedSolution.buildSolutionDescriptor();
+        EntityDescriptor<TestdataShadowingChainedSolution> entityDescriptor =
+                solutionDescriptor.findEntityDescriptorOrFail(TestdataShadowingChainedEntity.class);
+        ShadowVariableDescriptor<TestdataShadowingChainedSolution> nextEntityVariableDescriptor =
+                entityDescriptor.getShadowVariableDescriptor("nextEntity");
+        SingletonInverseVariableListener<TestdataShadowingChainedSolution> variableListener =
+                new SingletonInverseVariableListener<>(
+                        (InverseRelationShadowVariableDescriptor<TestdataShadowingChainedSolution>) nextEntityVariableDescriptor,
+                        entityDescriptor.getGenuineVariableDescriptor("chainedObject"));
+        InnerScoreDirector<TestdataShadowingChainedSolution, SimpleScore> scoreDirector = mock(InnerScoreDirector.class);
 
-        TestdataRichChainedAnchor a0 = new TestdataRichChainedAnchor("a0");
-        TestdataRichChainedEntity a1 = new TestdataRichChainedEntity("a1", a0);
+        TestdataShadowingChainedAnchor a0 = new TestdataShadowingChainedAnchor("a0");
+        TestdataShadowingChainedEntity a1 = new TestdataShadowingChainedEntity("a1", a0);
         a1.setAnchor(a0);
         a0.setNextEntity(a1);
-        TestdataRichChainedEntity a2 = new TestdataRichChainedEntity("a2", a1);
+        TestdataShadowingChainedEntity a2 = new TestdataShadowingChainedEntity("a2", a1);
         a2.setAnchor(a0);
         a1.setNextEntity(a2);
-        TestdataRichChainedEntity a3 = new TestdataRichChainedEntity("a3", a2);
+        TestdataShadowingChainedEntity a3 = new TestdataShadowingChainedEntity("a3", a2);
         a3.setAnchor(a0);
         a2.setNextEntity(a3);
 
-        TestdataRichChainedAnchor b0 = new TestdataRichChainedAnchor("b0");
-        TestdataRichChainedEntity b1 = new TestdataRichChainedEntity("b1", b0);
+        TestdataShadowingChainedAnchor b0 = new TestdataShadowingChainedAnchor("b0");
+        TestdataShadowingChainedEntity b1 = new TestdataShadowingChainedEntity("b1", b0);
         b1.setAnchor(b0);
         b0.setNextEntity(b1);
 
-        TestdataRichChainedSolution solution = new TestdataRichChainedSolution("solution");
+        TestdataShadowingChainedSolution solution = new TestdataShadowingChainedSolution("solution");
         solution.setChainedAnchorList(Arrays.asList(a0, b0));
         solution.setChainedEntityList(Arrays.asList(a1, a2, a3, b1));
 
-        assertEquals(null, b1.getNextEntity());
+        assertThat(b1.getNextEntity()).isEqualTo(null);
 
         variableListener.beforeVariableChanged(scoreDirector, a3);
         a3.setChainedObject(b1);
         variableListener.afterVariableChanged(scoreDirector, a3);
-        assertEquals(a3, b1.getNextEntity());
+        assertThat(b1.getNextEntity()).isEqualTo(a3);
 
         InOrder inOrder = inOrder(scoreDirector);
         inOrder.verify(scoreDirector).beforeVariableChanged(nextEntityVariableDescriptor, b1);

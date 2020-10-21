@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.travelingtournament.domain.Day;
 import org.optaplanner.examples.travelingtournament.domain.Match;
 import org.optaplanner.examples.travelingtournament.domain.TravelingTournament;
@@ -76,6 +75,12 @@ public class MatchChainRotationsMove extends AbstractMove<TravelingTournament> {
     }
 
     @Override
+    public MatchChainRotationsMove rebase(ScoreDirector<TravelingTournament> destinationScoreDirector) {
+        return new MatchChainRotationsMove(rebaseList(firstMatchList, destinationScoreDirector),
+                rebaseList(secondMatchList, destinationScoreDirector));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         List<Match> entities = new ArrayList<>(firstMatchList.size() + secondMatchList.size());
         entities.addAll(firstMatchList);
@@ -99,23 +104,18 @@ public class MatchChainRotationsMove extends AbstractMove<TravelingTournament> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof MatchChainRotationsMove) {
-            MatchChainRotationsMove other = (MatchChainRotationsMove) o;
-            return new EqualsBuilder()
-                    .append(firstMatchList, other.firstMatchList)
-                    .append(secondMatchList, other.secondMatchList)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final MatchChainRotationsMove other = (MatchChainRotationsMove) o;
+        return Objects.equals(firstMatchList, other.firstMatchList) &&
+                Objects.equals(secondMatchList, other.secondMatchList);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(firstMatchList)
-                .append(secondMatchList)
-                .toHashCode();
+        return Objects.hash(firstMatchList, secondMatchList);
     }
 
     @Override

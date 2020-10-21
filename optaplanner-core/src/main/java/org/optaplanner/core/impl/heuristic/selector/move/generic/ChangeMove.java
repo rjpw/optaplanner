@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
@@ -73,9 +72,17 @@ public class ChangeMove<Solution_> extends AbstractMove<Solution_> {
 
     @Override
     protected void doMoveOnGenuineVariables(ScoreDirector<Solution_> scoreDirector) {
-        scoreDirector.beforeVariableChanged(variableDescriptor, entity);
+        InnerScoreDirector<Solution_, ?> innerScoreDirector = (InnerScoreDirector<Solution_, ?>) scoreDirector;
+        innerScoreDirector.beforeVariableChanged(variableDescriptor, entity);
         variableDescriptor.setValue(entity, toPlanningValue);
-        scoreDirector.afterVariableChanged(variableDescriptor, entity);
+        innerScoreDirector.afterVariableChanged(variableDescriptor, entity);
+    }
+
+    @Override
+    public ChangeMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new ChangeMove<>(destinationScoreDirector.lookUpWorkingObject(entity),
+                variableDescriptor,
+                destinationScoreDirector.lookUpWorkingObject(toPlanningValue));
     }
 
     // ************************************************************************
@@ -101,25 +108,19 @@ public class ChangeMove<Solution_> extends AbstractMove<Solution_> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof ChangeMove) {
-            ChangeMove<?> other = (ChangeMove) o;
-            return new EqualsBuilder()
-                    .append(entity, other.entity)
-                    .append(variableDescriptor, other.variableDescriptor)
-                    .append(toPlanningValue, other.toPlanningValue)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final ChangeMove<?> other = (ChangeMove<?>) o;
+        return Objects.equals(entity, other.entity) &&
+                Objects.equals(variableDescriptor, other.variableDescriptor) &&
+                Objects.equals(toPlanningValue, other.toPlanningValue);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(entity)
-                .append(variableDescriptor)
-                .append(toPlanningValue)
-                .toHashCode();
+        return Objects.hash(entity, variableDescriptor, toPlanningValue);
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,16 @@
 
 package org.optaplanner.examples.nurserostering.solver.drools;
 
-import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Objects;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 
-public class EmployeeWorkSequence implements Comparable<EmployeeWorkSequence>, Serializable {
+public class EmployeeWorkSequence implements Comparable<EmployeeWorkSequence> {
+
+    private static final Comparator<EmployeeWorkSequence> COMPARATOR = Comparator.comparing(EmployeeWorkSequence::getEmployee)
+            .thenComparingInt(EmployeeWorkSequence::getFirstDayIndex)
+            .thenComparingInt(EmployeeWorkSequence::getLastDayIndex);
 
     private Employee employee;
     private int firstDayIndex;
@@ -63,34 +65,24 @@ public class EmployeeWorkSequence implements Comparable<EmployeeWorkSequence>, S
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof EmployeeWorkSequence) {
-            EmployeeWorkSequence other = (EmployeeWorkSequence) o;
-            return new EqualsBuilder()
-                    .append(employee, other.employee)
-                    .append(firstDayIndex, other.firstDayIndex)
-                    .append(lastDayIndex, other.lastDayIndex)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final EmployeeWorkSequence other = (EmployeeWorkSequence) o;
+        return Objects.equals(employee, other.employee) &&
+                firstDayIndex == other.firstDayIndex &&
+                lastDayIndex == other.lastDayIndex;
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(employee)
-                .append(firstDayIndex)
-                .append(lastDayIndex)
-                .toHashCode();
+        return Objects.hash(employee, firstDayIndex, lastDayIndex);
     }
 
     @Override
     public int compareTo(EmployeeWorkSequence other) {
-        return new CompareToBuilder()
-                .append(employee, other.employee)
-                .append(firstDayIndex, other.firstDayIndex)
-                .append(lastDayIndex, other.lastDayIndex)
-                .toComparison();
+        return COMPARATOR.compare(this, other);
     }
 
     @Override

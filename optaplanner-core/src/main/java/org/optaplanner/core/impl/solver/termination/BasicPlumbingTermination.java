@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,21 +21,21 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.optaplanner.core.api.solver.ProblemFactChange;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.ProblemFactChange;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
 /**
  * Concurrency notes:
  * Condition predicate on ({@link #problemFactChangeQueue} is not empty or {@link #terminatedEarly} is true).
  */
-public class BasicPlumbingTermination extends AbstractTermination {
+public class BasicPlumbingTermination<Solution_> extends AbstractTermination<Solution_> {
 
     protected final boolean daemon;
 
     protected boolean terminatedEarly = false;
-    protected BlockingQueue<ProblemFactChange> problemFactChangeQueue = new LinkedBlockingQueue<>();
+    protected BlockingQueue<ProblemFactChange<Solution_>> problemFactChangeQueue = new LinkedBlockingQueue<>();
 
     protected boolean problemFactChangesBeingProcessed = false;
 
@@ -58,6 +58,7 @@ public class BasicPlumbingTermination extends AbstractTermination {
      * This method is thread-safe.
      * <p>
      * Concurrency note: unblocks {@link #waitForRestartSolverDecision()}.
+     *
      * @return true if successful
      */
     public synchronized boolean terminateEarly() {
@@ -78,6 +79,7 @@ public class BasicPlumbingTermination extends AbstractTermination {
      * If this returns true, then the problemFactChangeQueue is definitely not empty.
      * <p>
      * Concurrency note: Blocks until {@link #problemFactChangeQueue} is not empty or {@link #terminatedEarly} is true.
+     *
      * @return true if the solver needs to be restarted
      */
     public synchronized boolean waitForRestartSolverDecision() {
@@ -98,10 +100,11 @@ public class BasicPlumbingTermination extends AbstractTermination {
 
     /**
      * Concurrency note: unblocks {@link #waitForRestartSolverDecision()}.
+     *
      * @param problemFactChange never null
      * @return as specified by {@link Collection#add}
      */
-    public synchronized <Solution_> boolean addProblemFactChange(ProblemFactChange<Solution_> problemFactChange) {
+    public synchronized boolean addProblemFactChange(ProblemFactChange<Solution_> problemFactChange) {
         boolean added = problemFactChangeQueue.add(problemFactChange);
         notifyAll();
         return added;
@@ -109,16 +112,17 @@ public class BasicPlumbingTermination extends AbstractTermination {
 
     /**
      * Concurrency note: unblocks {@link #waitForRestartSolverDecision()}.
+     *
      * @param problemFactChangeList never null
      * @return as specified by {@link Collection#add}
      */
-    public synchronized <Solution_> boolean addProblemFactChanges(List<ProblemFactChange<Solution_>> problemFactChangeList) {
+    public synchronized boolean addProblemFactChanges(List<ProblemFactChange<Solution_>> problemFactChangeList) {
         boolean added = problemFactChangeQueue.addAll(problemFactChangeList);
         notifyAll();
         return added;
     }
 
-    public synchronized BlockingQueue<ProblemFactChange> startProblemFactChangesProcessing() {
+    public synchronized BlockingQueue<ProblemFactChange<Solution_>> startProblemFactChangesProcessing() {
         problemFactChangesBeingProcessed = true;
         return problemFactChangeQueue;
     }
@@ -136,9 +140,14 @@ public class BasicPlumbingTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public synchronized boolean isSolverTerminated(DefaultSolverScope solverScope) {
-        // Destroying a thread pool with solver threads will only cause it to interrupt those solver threads
-        if (Thread.currentThread().isInterrupted()) { // Does not clear the interrupted flag
+    public synchronized boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
+        // Destroying a thread pool with solver threads will only cause it to interrupt those solver threads,
+        // it won't call Solver.terminateEarly()
+        if (Thread.currentThread().isInterrupted() // Does not clear the interrupted flag
+                // Avoid duplicate log message because this method is called twice:
+                // - in the phase step loop (every phase termination bridges to the solver termination)
+                // - in the solver's phase loop
+                && !terminatedEarly) {
             logger.info("The solver thread got interrupted, so this solver is terminating early.");
             terminatedEarly = true;
         }
@@ -146,19 +155,19 @@ public class BasicPlumbingTermination extends AbstractTermination {
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
         throw new IllegalStateException(BasicPlumbingTermination.class.getSimpleName()
                 + " configured only as solver termination."
                 + " It is always bridged to phase termination.");
     }
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         return -1.0; // Not supported
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         throw new IllegalStateException(BasicPlumbingTermination.class.getSimpleName()
                 + " configured only as solver termination."
                 + " It is always bridged to phase termination.");
@@ -169,7 +178,8 @@ public class BasicPlumbingTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public Termination createChildThreadTermination(DefaultSolverScope solverScope, ChildThreadType childThreadType) {
+    public Termination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
         return this;
     }
 

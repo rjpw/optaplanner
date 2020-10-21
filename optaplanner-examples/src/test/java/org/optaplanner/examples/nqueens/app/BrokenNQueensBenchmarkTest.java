@@ -16,38 +16,41 @@
 
 package org.optaplanner.examples.nqueens.app;
 
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 import java.io.File;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.optaplanner.benchmark.api.PlannerBenchmark;
 import org.optaplanner.benchmark.api.PlannerBenchmarkException;
 import org.optaplanner.benchmark.api.PlannerBenchmarkFactory;
 import org.optaplanner.benchmark.config.PlannerBenchmarkConfig;
 import org.optaplanner.examples.common.app.PlannerBenchmarkTest;
+import org.optaplanner.examples.nqueens.domain.NQueens;
+import org.optaplanner.persistence.xstream.impl.domain.solution.XStreamSolutionFileIO;
 
 public class BrokenNQueensBenchmarkTest extends PlannerBenchmarkTest {
 
-    @Override
-    protected String createBenchmarkConfigResource() {
-        return "org/optaplanner/examples/nqueens/benchmark/nqueensBenchmarkConfig.xml";
-    }
-
-    @Override
-    protected PlannerBenchmarkFactory buildPlannerBenchmarkFactory(File unsolvedDataFile) {
-        PlannerBenchmarkFactory benchmarkFactory = super.buildPlannerBenchmarkFactory(unsolvedDataFile);
-        PlannerBenchmarkConfig benchmarkConfig = benchmarkFactory.getPlannerBenchmarkConfig();
-        benchmarkConfig.setWarmUpSecondsSpentLimit(0L);
-        benchmarkConfig.getInheritedSolverBenchmarkConfig().getSolverConfig().getTerminationConfig()
-                .setStepCountLimit(-100); // Intentionally crash the solver
-        return benchmarkFactory;
+    public BrokenNQueensBenchmarkTest() {
+        super(NQueensApp.SOLVER_CONFIG);
     }
 
     // ************************************************************************
     // Tests
     // ************************************************************************
 
-    @Test(timeout = 100000, expected = PlannerBenchmarkException.class)
+    @Test
+    @Timeout(100)
     public void benchmarkBroken8queens() {
-        runBenchmarkTest(new File("data/nqueens/unsolved/8queens.xml"));
+        NQueens problem = new XStreamSolutionFileIO<NQueens>(NQueens.class)
+                .read(new File("data/nqueens/unsolved/8queens.xml"));
+        PlannerBenchmarkConfig benchmarkConfig = buildPlannerBenchmarkConfig();
+        benchmarkConfig.setWarmUpSecondsSpentLimit(0L);
+        benchmarkConfig.getInheritedSolverBenchmarkConfig().getSolverConfig().getTerminationConfig()
+                .setStepCountLimit(-100); // Intentionally crash the solver
+        PlannerBenchmark benchmark = PlannerBenchmarkFactory.create(benchmarkConfig).buildPlannerBenchmark(problem);
+        assertThatExceptionOfType(PlannerBenchmarkException.class).isThrownBy(benchmark::benchmark);
     }
 
 }

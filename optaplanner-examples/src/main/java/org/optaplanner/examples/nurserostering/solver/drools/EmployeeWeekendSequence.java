@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,17 @@
 
 package org.optaplanner.examples.nurserostering.solver.drools;
 
-import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Objects;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 
-public class EmployeeWeekendSequence implements Comparable<EmployeeWeekendSequence>, Serializable {
+public class EmployeeWeekendSequence implements Comparable<EmployeeWeekendSequence> {
+
+    private static final Comparator<EmployeeWeekendSequence> COMPARATOR = Comparator
+            .comparing(EmployeeWeekendSequence::getEmployee)
+            .thenComparingInt(EmployeeWeekendSequence::getFirstSundayIndex)
+            .thenComparingInt(EmployeeWeekendSequence::getLastSundayIndex);
 
     private Employee employee;
     private int firstSundayIndex;
@@ -63,34 +66,24 @@ public class EmployeeWeekendSequence implements Comparable<EmployeeWeekendSequen
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof EmployeeWeekendSequence) {
-            EmployeeWeekendSequence other = (EmployeeWeekendSequence) o;
-            return new EqualsBuilder()
-                    .append(employee, other.employee)
-                    .append(firstSundayIndex, other.firstSundayIndex)
-                    .append(lastSundayIndex, other.lastSundayIndex)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final EmployeeWeekendSequence other = (EmployeeWeekendSequence) o;
+        return Objects.equals(employee, other.employee) &&
+                firstSundayIndex == other.firstSundayIndex &&
+                lastSundayIndex == other.lastSundayIndex;
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(employee)
-                .append(firstSundayIndex)
-                .append(lastSundayIndex)
-                .toHashCode();
+        return Objects.hash(employee, firstSundayIndex, lastSundayIndex);
     }
 
     @Override
     public int compareTo(EmployeeWeekendSequence other) {
-        return new CompareToBuilder()
-                .append(employee, other.employee)
-                .append(firstSundayIndex, other.firstSundayIndex)
-                .append(lastSundayIndex, other.lastSundayIndex)
-                .toComparison();
+        return COMPARATOR.compare(this, other);
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ package org.optaplanner.core.impl.solver.termination;
 import java.util.List;
 
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
-public class AndCompositeTermination extends AbstractCompositeTermination {
+public class AndCompositeTermination<Solution_> extends AbstractCompositeTermination<Solution_> {
 
-    public AndCompositeTermination(List<Termination> terminationList) {
+    public AndCompositeTermination(List<Termination<Solution_>> terminationList) {
         super(terminationList);
     }
 
-    public AndCompositeTermination(Termination... terminations) {
+    public AndCompositeTermination(Termination<Solution_>... terminations) {
         super(terminations);
     }
 
@@ -41,8 +41,8 @@ public class AndCompositeTermination extends AbstractCompositeTermination {
      * @return true if all the Terminations are terminated.
      */
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
-        for (Termination termination : terminationList) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
+        for (Termination<Solution_> termination : terminationList) {
             if (!termination.isSolverTerminated(solverScope)) {
                 return false;
             }
@@ -55,8 +55,8 @@ public class AndCompositeTermination extends AbstractCompositeTermination {
      * @return true if all the Terminations are terminated.
      */
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
-        for (Termination termination : terminationList) {
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
+        for (Termination<Solution_> termination : terminationList) {
             if (!termination.isPhaseTerminated(phaseScope)) {
                 return false;
             }
@@ -71,13 +71,14 @@ public class AndCompositeTermination extends AbstractCompositeTermination {
     /**
      * Calculates the minimum timeGradient of all Terminations.
      * Not supported timeGradients (-1.0) are ignored.
+     *
      * @param solverScope never null
      * @return the minimum timeGradient of the Terminations.
      */
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         double timeGradient = 1.0;
-        for (Termination termination : terminationList) {
+        for (Termination<Solution_> termination : terminationList) {
             double nextTimeGradient = termination.calculateSolverTimeGradient(solverScope);
             if (nextTimeGradient >= 0.0) {
                 timeGradient = Math.min(timeGradient, nextTimeGradient);
@@ -89,13 +90,14 @@ public class AndCompositeTermination extends AbstractCompositeTermination {
     /**
      * Calculates the minimum timeGradient of all Terminations.
      * Not supported timeGradients (-1.0) are ignored.
+     *
      * @param phaseScope never null
      * @return the minimum timeGradient of the Terminations.
      */
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         double timeGradient = 1.0;
-        for (Termination termination : terminationList) {
+        for (Termination<Solution_> termination : terminationList) {
             double nextTimeGradient = termination.calculatePhaseTimeGradient(phaseScope);
             if (nextTimeGradient >= 0.0) {
                 timeGradient = Math.min(timeGradient, nextTimeGradient);
@@ -109,9 +111,9 @@ public class AndCompositeTermination extends AbstractCompositeTermination {
     // ************************************************************************
 
     @Override
-    public AndCompositeTermination createChildThreadTermination(
-            DefaultSolverScope solverScope, ChildThreadType childThreadType) {
-        return new AndCompositeTermination(createChildThreadTerminationList(solverScope, childThreadType));
+    public AndCompositeTermination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
+        return new AndCompositeTermination<>(createChildThreadTerminationList(solverScope, childThreadType));
     }
 
     @Override

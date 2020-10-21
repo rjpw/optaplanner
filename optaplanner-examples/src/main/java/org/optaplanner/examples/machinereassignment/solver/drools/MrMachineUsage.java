@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,22 @@
 
 package org.optaplanner.examples.machinereassignment.solver.drools;
 
-import java.io.Serializable;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingLong;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.optaplanner.core.api.score.constraint.ConstraintMatch;
+import java.util.Comparator;
+import java.util.Objects;
+
 import org.optaplanner.examples.machinereassignment.domain.MrMachine;
 import org.optaplanner.examples.machinereassignment.domain.MrMachineCapacity;
 import org.optaplanner.examples.machinereassignment.domain.MrResource;
 
-public class MrMachineUsage implements Serializable, Comparable<MrMachineUsage> {
+public class MrMachineUsage implements Comparable<MrMachineUsage> {
+
+    private static final Comparator<MrMachineUsage> COMPARATOR = comparing(
+            (MrMachineUsage machineUsage) -> machineUsage.getClass().getName())
+                    .thenComparing(machineUsage -> machineUsage.machineCapacity, comparingLong(MrMachineCapacity::getId))
+                    .thenComparingLong(machineUsage -> machineUsage.usage);
 
     private MrMachineCapacity machineCapacity;
     private long usage;
@@ -48,37 +53,18 @@ public class MrMachineUsage implements Serializable, Comparable<MrMachineUsage> 
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof MrMachineUsage) {
-            MrMachineUsage other = (MrMachineUsage) o;
-            return new EqualsBuilder()
-                    .append(machineCapacity, other.machineCapacity)
-                    .append(usage, other.usage)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final MrMachineUsage other = (MrMachineUsage) o;
+        return Objects.equals(machineCapacity, other.machineCapacity) &&
+                usage == other.usage;
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(machineCapacity)
-                .append(usage)
-                .toHashCode();
-    }
-
-    /**
-     * Used by the GUI to sort the {@link ConstraintMatch} list
-     * by {@link ConstraintMatch#getJustificationList()}.
-     * @param other never null
-     * @return comparison
-     */
-    @Override
-    public int compareTo(MrMachineUsage other) {
-        return new CompareToBuilder()
-                .append(machineCapacity, other.machineCapacity)
-                .append(usage, other.usage)
-                .toComparison();
+        return Objects.hash(machineCapacity, usage);
     }
 
     public MrMachine getMachine() {
@@ -110,4 +96,8 @@ public class MrMachineUsage implements Serializable, Comparable<MrMachineUsage> 
         return getMachine() + "-" + getResource() + "=" + usage;
     }
 
+    @Override
+    public int compareTo(MrMachineUsage o) {
+        return COMPARATOR.compare(this, o);
+    }
 }

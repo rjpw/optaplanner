@@ -42,6 +42,10 @@ public final class LambdaBeanPropertyMemberAccessor implements MemberAccessor {
     private final BiConsumer setterFunction;
 
     public LambdaBeanPropertyMemberAccessor(Method getterMethod) {
+        this(getterMethod, false);
+    }
+
+    public LambdaBeanPropertyMemberAccessor(Method getterMethod, boolean getterOnly) {
         this.getterMethod = getterMethod;
         Class<?> declaringClass = getterMethod.getDeclaringClass();
         if (!ReflectionHelper.isGetterMethod(getterMethod)) {
@@ -53,8 +57,13 @@ public final class LambdaBeanPropertyMemberAccessor implements MemberAccessor {
         // MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(declaringClass, MethodHandles.lookup())
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         getterFunction = createGetterFunction(lookup);
-        setterMethod = ReflectionHelper.getSetterMethod(declaringClass, getterMethod.getReturnType(), propertyName);
-        setterFunction = createSetterFunction(lookup);
+        if (getterOnly) {
+            setterMethod = null;
+            setterFunction = null;
+        } else {
+            setterMethod = ReflectionHelper.getSetterMethod(declaringClass, getterMethod.getReturnType(), propertyName);
+            setterFunction = createSetterFunction(lookup);
+        }
     }
 
     private Function createGetterFunction(MethodHandles.Lookup lookup) {
@@ -67,7 +76,10 @@ public final class LambdaBeanPropertyMemberAccessor implements MemberAccessor {
                     MethodType.methodType(Object.class, Object.class),
                     lookup.findVirtual(declaringClass, getterMethod.getName(), MethodType.methodType(propertyType)),
                     MethodType.methodType(propertyType, declaringClass));
-        } catch (LambdaConversionException | NoSuchMethodException | IllegalAccessException e) {
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Lambda creation failed for getterMethod (" + getterMethod + ").\n" +
+                    MemberAccessorFactory.CLASSLOADER_NUDGE_MESSAGE, e);
+        } catch (LambdaConversionException | NoSuchMethodException e) {
             throw new IllegalArgumentException("Lambda creation failed for getterMethod (" + getterMethod + ").", e);
         }
         try {
@@ -98,6 +110,11 @@ public final class LambdaBeanPropertyMemberAccessor implements MemberAccessor {
         } catch (Throwable e) {
             throw new IllegalArgumentException("Lambda creation failed for setterMethod (" + setterMethod + ").", e);
         }
+    }
+
+    @Override
+    public Class<?> getDeclaringClass() {
+        return getterMethod.getDeclaringClass();
     }
 
     @Override
@@ -163,5 +180,4 @@ public final class LambdaBeanPropertyMemberAccessor implements MemberAccessor {
     public String toString() {
         return "bean property " + propertyName + " on " + getterMethod.getDeclaringClass();
     }
-
 }

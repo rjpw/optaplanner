@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package org.optaplanner.core.api.score.buildin.hardmediumsoft;
 
+import java.util.Objects;
+
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.AbstractScore;
-import org.optaplanner.core.api.score.FeasibilityScore;
 import org.optaplanner.core.api.score.Score;
 
 /**
@@ -28,12 +29,15 @@ import org.optaplanner.core.api.score.Score;
  * Hard constraints determine feasibility.
  * <p>
  * This class is immutable.
+ *
  * @see Score
  */
-public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore>
-        implements FeasibilityScore<HardMediumSoftScore> {
+public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore> {
 
     public static final HardMediumSoftScore ZERO = new HardMediumSoftScore(0, 0, 0, 0);
+    public static final HardMediumSoftScore ONE_HARD = new HardMediumSoftScore(0, 1, 0, 0);
+    public static final HardMediumSoftScore ONE_MEDIUM = new HardMediumSoftScore(0, 0, 1, 0);
+    public static final HardMediumSoftScore ONE_SOFT = new HardMediumSoftScore(0, 0, 0, 1);
     private static final String HARD_LABEL = "hard";
     private static final String MEDIUM_LABEL = "medium";
     private static final String SOFT_LABEL = "soft";
@@ -45,15 +49,27 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
         int hardScore = parseLevelAsInt(HardMediumSoftScore.class, scoreString, scoreTokens[1]);
         int mediumScore = parseLevelAsInt(HardMediumSoftScore.class, scoreString, scoreTokens[2]);
         int softScore = parseLevelAsInt(HardMediumSoftScore.class, scoreString, scoreTokens[3]);
-        return valueOfUninitialized(initScore, hardScore, mediumScore, softScore);
+        return ofUninitialized(initScore, hardScore, mediumScore, softScore);
     }
 
-    public static HardMediumSoftScore valueOfUninitialized(int initScore, int hardScore, int mediumScore, int softScore) {
+    public static HardMediumSoftScore ofUninitialized(int initScore, int hardScore, int mediumScore, int softScore) {
         return new HardMediumSoftScore(initScore, hardScore, mediumScore, softScore);
     }
 
-    public static HardMediumSoftScore valueOf(int hardScore, int mediumScore, int softScore) {
+    public static HardMediumSoftScore of(int hardScore, int mediumScore, int softScore) {
         return new HardMediumSoftScore(0, hardScore, mediumScore, softScore);
+    }
+
+    public static HardMediumSoftScore ofHard(int hardScore) {
+        return new HardMediumSoftScore(0, hardScore, 0, 0);
+    }
+
+    public static HardMediumSoftScore ofMedium(int mediumScore) {
+        return new HardMediumSoftScore(0, 0, mediumScore, 0);
+    }
+
+    public static HardMediumSoftScore ofSoft(int softScore) {
+        return new HardMediumSoftScore(0, 0, 0, softScore);
     }
 
     // ************************************************************************
@@ -88,6 +104,7 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
      * The total of the broken negative hard constraints and fulfilled positive hard constraints.
      * Their weight is included in the total.
      * The hard score is usually a negative number because most use cases only have negative constraints.
+     *
      * @return higher is better, usually negative, 0 if no hard constraints are broken/fulfilled
      */
     public int getHardScore() {
@@ -100,6 +117,7 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
      * The medium score is usually a negative number because most use cases only have negative constraints.
      * <p>
      * In a normal score comparison, the medium score is irrelevant if the 2 scores don't have the same hard score.
+     *
      * @return higher is better, usually negative, 0 if no medium constraints are broken/fulfilled
      */
     public int getMediumScore() {
@@ -112,6 +130,7 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
      * The soft score is usually a negative number because most use cases only have negative constraints.
      * <p>
      * In a normal score comparison, the soft score is irrelevant if the 2 scores don't have the same hard and medium score.
+     *
      * @return higher is better, usually negative, 0 if no soft constraints are broken/fulfilled
      */
     public int getSoftScore() {
@@ -123,18 +142,13 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
     // ************************************************************************
 
     @Override
-    public HardMediumSoftScore toInitializedScore() {
-        return initScore == 0 ? this : new HardMediumSoftScore(0, hardScore, mediumScore, softScore);
-    }
-
-    @Override
     public HardMediumSoftScore withInitScore(int newInitScore) {
-        assertNoInitScore();
         return new HardMediumSoftScore(newInitScore, hardScore, mediumScore, softScore);
     }
 
     /**
      * A {@link PlanningSolution} is feasible if it has no broken hard constraints.
+     *
      * @return true if the {@link #getHardScore()} is 0 or higher
      */
     @Override
@@ -143,12 +157,12 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
     }
 
     @Override
-    public HardMediumSoftScore add(HardMediumSoftScore augment) {
+    public HardMediumSoftScore add(HardMediumSoftScore addend) {
         return new HardMediumSoftScore(
-                initScore + augment.getInitScore(),
-                hardScore + augment.getHardScore(),
-                mediumScore + augment.getMediumScore(),
-                softScore + augment.getSoftScore());
+                initScore + addend.getInitScore(),
+                hardScore + addend.getHardScore(),
+                mediumScore + addend.getMediumScore(),
+                softScore + addend.getSoftScore());
     }
 
     @Override
@@ -194,12 +208,11 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
 
     @Override
     public Number[] toLevelNumbers() {
-        return new Number[]{hardScore, mediumScore, softScore};
+        return new Number[] { hardScore, mediumScore, softScore };
     }
 
     @Override
     public boolean equals(Object o) {
-        // A direct implementation (instead of EqualsBuilder) to avoid dependencies
         if (this == o) {
             return true;
         } else if (o instanceof HardMediumSoftScore) {
@@ -215,23 +228,17 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
 
     @Override
     public int hashCode() {
-        // A direct implementation (instead of HashCodeBuilder) to avoid dependencies
-        return ((((17 * 37)
-                + initScore) * 37
-                + hardScore) * 37
-                + mediumScore) * 37
-                + softScore;
+        return Objects.hash(initScore, hardScore, mediumScore, softScore);
     }
 
     @Override
     public int compareTo(HardMediumSoftScore other) {
-        // A direct implementation (instead of CompareToBuilder) to avoid dependencies
         if (initScore != other.getInitScore()) {
-            return initScore < other.getInitScore() ? -1 : 1;
+            return Integer.compare(initScore, other.getInitScore());
         } else if (hardScore != other.getHardScore()) {
-            return hardScore < other.getHardScore() ? -1 : 1;
+            return Integer.compare(hardScore, other.getHardScore());
         } else if (mediumScore != other.getMediumScore()) {
-            return mediumScore < other.getMediumScore() ? -1 : 1;
+            return Integer.compare(mediumScore, other.getMediumScore());
         } else {
             return Integer.compare(softScore, other.getSoftScore());
         }
@@ -245,11 +252,6 @@ public final class HardMediumSoftScore extends AbstractScore<HardMediumSoftScore
     @Override
     public String toString() {
         return getInitPrefix() + hardScore + HARD_LABEL + "/" + mediumScore + MEDIUM_LABEL + "/" + softScore + SOFT_LABEL;
-    }
-
-    @Override
-    public boolean isCompatibleArithmeticArgument(Score otherScore) {
-        return otherScore instanceof HardMediumSoftScore;
     }
 
 }

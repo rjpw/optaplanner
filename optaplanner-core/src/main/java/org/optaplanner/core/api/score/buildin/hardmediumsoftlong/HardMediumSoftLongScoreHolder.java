@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,71 +17,74 @@
 package org.optaplanner.core.api.score.buildin.hardmediumsoftlong;
 
 import org.kie.api.runtime.rule.RuleContext;
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.buildin.hardmediumsoft.HardMediumSoftScore;
-import org.optaplanner.core.api.score.holder.AbstractScoreHolder;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.score.holder.ScoreHolder;
 
 /**
- * @see HardMediumSoftScore
+ * @see HardMediumSoftLongScore
  */
-public class HardMediumSoftLongScoreHolder extends AbstractScoreHolder {
+public interface HardMediumSoftLongScoreHolder extends ScoreHolder<HardMediumSoftLongScore> {
 
-    protected long hardScore;
-    protected long mediumScore;
-    protected long softScore;
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, long weightMultiplier);
 
-    public HardMediumSoftLongScoreHolder(boolean constraintMatchEnabled) {
-        super(constraintMatchEnabled, HardMediumSoftLongScore.ZERO);
-    }
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the specific weightMultiplier per score
+     * level.
+     * Slower than {@link #penalize(RuleContext, long)}.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeightMultiplier at least 0
+     * @param mediumWeightMultiplier at least 0
+     * @param softWeightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, long hardWeightMultiplier, long mediumWeightMultiplier,
+            long softWeightMultiplier);
 
-    public long getHardScore() {
-        return hardScore;
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, long weightMultiplier);
 
-    public long getMediumScore() {
-        return mediumScore;
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the specific weightMultiplier per score level.
+     * Slower than {@link #reward(RuleContext, long)}.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeightMultiplier at least 0
+     * @param mediumWeightMultiplier at least 0
+     * @param softWeightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, long hardWeightMultiplier, long mediumWeightMultiplier,
+            long softWeightMultiplier);
 
-    public long getSoftScore() {
-        return softScore;
-    }
-
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
+    void impactScore(RuleContext kcontext, long weightMultiplier);
 
     /**
      * @param kcontext never null, the magic variable in DRL
      * @param hardWeight higher is better, negative for a penalty, positive for a reward
      */
-    public void addHardConstraintMatch(RuleContext kcontext, long hardWeight) {
-        hardScore += hardWeight;
-        registerConstraintMatch(kcontext,
-                () -> hardScore -= hardWeight,
-                () -> HardMediumSoftLongScore.valueOf(hardWeight, 0L, 0L));
-    }
+    void addHardConstraintMatch(RuleContext kcontext, long hardWeight);
 
     /**
      * @param kcontext never null, the magic variable in DRL
      * @param mediumWeight higher is better, negative for a penalty, positive for a reward
      */
-    public void addMediumConstraintMatch(RuleContext kcontext, long mediumWeight) {
-        mediumScore += mediumWeight;
-        registerConstraintMatch(kcontext,
-                () -> mediumScore -= mediumWeight,
-                () -> HardMediumSoftLongScore.valueOf(0L, mediumWeight, 0L));
-    }
+    void addMediumConstraintMatch(RuleContext kcontext, long mediumWeight);
 
     /**
      * @param kcontext never null, the magic variable in DRL
      * @param softWeight higher is better, negative for a penalty, positive for a reward
      */
-    public void addSoftConstraintMatch(RuleContext kcontext, long softWeight) {
-        softScore += softWeight;
-        registerConstraintMatch(kcontext,
-                () -> softScore -= softWeight,
-                () -> HardMediumSoftLongScore.valueOf(0L, 0L, softWeight));
-    }
+    void addSoftConstraintMatch(RuleContext kcontext, long softWeight);
 
     /**
      * @param kcontext never null, the magic variable in DRL
@@ -89,22 +92,5 @@ public class HardMediumSoftLongScoreHolder extends AbstractScoreHolder {
      * @param mediumWeight higher is better, negative for a penalty, positive for a reward
      * @param softWeight higher is better, negative for a penalty, positive for a reward
      */
-    public void addMultiConstraintMatch(RuleContext kcontext, long hardWeight, long mediumWeight, long softWeight) {
-        hardScore += hardWeight;
-        mediumScore += mediumWeight;
-        softScore += softWeight;
-        registerConstraintMatch(kcontext,
-                () -> {
-                    hardScore -= hardWeight;
-                    mediumScore -= mediumWeight;
-                    softScore -= softWeight;
-                },
-                () -> HardMediumSoftLongScore.valueOf(hardWeight, mediumWeight, softWeight));
-    }
-
-    @Override
-    public Score extractScore(int initScore) {
-        return HardMediumSoftLongScore.valueOfUninitialized(initScore, hardScore, mediumScore, softScore);
-    }
-
+    void addMultiConstraintMatch(RuleContext kcontext, long hardWeight, long mediumWeight, long softWeight);
 }

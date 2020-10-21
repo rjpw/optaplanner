@@ -16,6 +16,9 @@
 
 package org.optaplanner.examples.examination.swingui;
 
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderColumnKey.HEADER_COLUMN;
+import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderRowKey.HEADER_ROW;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -24,6 +27,7 @@ import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.util.List;
+
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
@@ -48,16 +52,13 @@ import org.optaplanner.examples.examination.domain.Room;
 import org.optaplanner.swing.impl.SwingUtils;
 import org.optaplanner.swing.impl.TangoColorFactory;
 
-import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderColumnKey.*;
-import static org.optaplanner.examples.common.swingui.timetable.TimeTablePanel.HeaderRowKey.*;
-
 public class ExaminationPanel extends SolutionPanel<Examination> {
 
     public static final String LOGO_PATH = "/org/optaplanner/examples/examination/swingui/examinationLogo.png";
 
     private final TimeTablePanel<Room, Period> roomsPanel;
 
-    private InstitutionParametrizationDialog institutionParametrizationDialog;
+    private ExaminationConstraintConfigurationDialog examinationConstraintConfigurationDialog;
     private AbstractAction institutionParametrizationEditAction;
 
     private int maximumPeriodDuration;
@@ -75,20 +76,20 @@ public class ExaminationPanel extends SolutionPanel<Examination> {
 
     private JPanel createFooterPanel() {
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        institutionParametrizationEditAction = new AbstractAction("Edit scoring parameters") {
+        institutionParametrizationEditAction = new AbstractAction("Edit constraint weights") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (solutionBusiness.isSolving()) {
                     JOptionPane.showMessageDialog(ExaminationPanel.this.getTopLevelAncestor(),
                             "The GUI does not support this action yet during solving.\n"
-                            + "OptaPlanner itself does support it.\n"
-                            + "\nTerminate solving first and try again.",
+                                    + "OptaPlanner itself does support it.\n"
+                                    + "\nTerminate solving first and try again.",
                             "Unsupported in GUI", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                institutionParametrizationDialog.setInstitutionParametrization(
-                        getSolution().getInstitutionParametrization());
-                institutionParametrizationDialog.setVisible(true);
+                examinationConstraintConfigurationDialog.setExaminationConstraintConfiguration(
+                        getSolution().getConstraintConfiguration());
+                examinationConstraintConfigurationDialog.setVisible(true);
             }
         };
         institutionParametrizationEditAction.setEnabled(false);
@@ -99,7 +100,8 @@ public class ExaminationPanel extends SolutionPanel<Examination> {
     @Override
     public void setSolverAndPersistenceFrame(SolverAndPersistenceFrame solverAndPersistenceFrame) {
         super.setSolverAndPersistenceFrame(solverAndPersistenceFrame);
-        institutionParametrizationDialog = new InstitutionParametrizationDialog(solverAndPersistenceFrame, this);
+        examinationConstraintConfigurationDialog = new ExaminationConstraintConfigurationDialog(solverAndPersistenceFrame,
+                this);
     }
 
     @Override

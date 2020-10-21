@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ import java.util.List;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.domain.variable.CustomShadowVariable;
 import org.optaplanner.core.api.domain.variable.PlanningVariableReference;
+import org.optaplanner.core.api.domain.variable.VariableListener;
 import org.optaplanner.core.config.util.ConfigUtils;
 import org.optaplanner.core.impl.domain.common.accessor.MemberAccessor;
 import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.domain.policy.DescriptorPolicy;
 import org.optaplanner.core.impl.domain.variable.descriptor.ShadowVariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
-import org.optaplanner.core.impl.domain.variable.listener.VariableListener;
 import org.optaplanner.core.impl.domain.variable.supply.Demand;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
@@ -72,7 +72,7 @@ public class CustomShadowVariableDescriptor<Solution_> extends ShadowVariableDes
                         + ") has a " + CustomShadowVariable.class.getSimpleName()
                         + " annotated property (" + variableMemberAccessor.getName()
                         + ") with a non-null variableListenerRef (" + variableListenerRef
-                        + "), so it can not have a variableListenerClass (" + variableListenerClass
+                        + "), so it cannot have a variableListenerClass (" + variableListenerClass
                         + ") nor any sources (" + Arrays.toString(sources) + ").");
             }
         } else {
@@ -125,7 +125,8 @@ public class CustomShadowVariableDescriptor<Solution_> extends ShadowVariableDes
                 }
             }
             String refVariableName = variableListenerRef.variableName();
-            VariableDescriptor<Solution_> uncastRefVariableDescriptor = refEntityDescriptor.getVariableDescriptor(refVariableName);
+            VariableDescriptor<Solution_> uncastRefVariableDescriptor = refEntityDescriptor
+                    .getVariableDescriptor(refVariableName);
             if (uncastRefVariableDescriptor == null) {
                 throw new IllegalArgumentException("The entityClass (" + entityDescriptor.getEntityClass()
                         + ") has a " + CustomShadowVariable.class.getSimpleName()
@@ -142,7 +143,7 @@ public class CustomShadowVariableDescriptor<Solution_> extends ShadowVariableDes
                         + ") with refVariable (" + uncastRefVariableDescriptor.getSimpleEntityAndVariableName()
                         + ") that lacks a " + CustomShadowVariable.class.getSimpleName() + " annotation.");
             }
-            refVariableDescriptor = (CustomShadowVariableDescriptor) uncastRefVariableDescriptor;
+            refVariableDescriptor = (CustomShadowVariableDescriptor<Solution_>) uncastRefVariableDescriptor;
             if (refVariableDescriptor.isRef()) {
                 throw new IllegalArgumentException("The entityClass (" + entityDescriptor.getEntityClass()
                         + ") has a " + CustomShadowVariable.class.getSimpleName()
@@ -208,17 +209,17 @@ public class CustomShadowVariableDescriptor<Solution_> extends ShadowVariableDes
     // ************************************************************************
 
     @Override
-    public Demand getProvidedDemand() {
-        return new CustomShadowVariableDemand(this);
+    public Demand<Solution_, ?> getProvidedDemand() {
+        return new CustomShadowVariableDemand<>(this);
     }
 
     @Override
-    public boolean hasVariableListener(InnerScoreDirector scoreDirector) {
+    public boolean hasVariableListener(InnerScoreDirector<Solution_, ?> scoreDirector) {
         return refVariableDescriptor == null;
     }
 
     @Override
-    public VariableListener<Solution_> buildVariableListener(InnerScoreDirector<Solution_> scoreDirector) {
+    public VariableListener<Solution_, ?> buildVariableListener(InnerScoreDirector<Solution_, ?> scoreDirector) {
         if (refVariableDescriptor != null) {
             throw new IllegalStateException("The shadowVariableDescriptor (" + this
                     + ") references another shadowVariableDescriptor (" + refVariableDescriptor

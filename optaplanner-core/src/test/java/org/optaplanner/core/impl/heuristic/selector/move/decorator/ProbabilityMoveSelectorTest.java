@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,16 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertCodesOfNeverEndingMoveSelector;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
+
 import java.util.Random;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.move.DummyMove;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
@@ -26,48 +33,45 @@ import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionPr
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
 
 public class ProbabilityMoveSelectorTest {
 
     @Test
     public void randomSelection() {
-        MoveSelector childMoveSelector = SelectorTestUtils.mockMoveSelector(DummyMove.class,
+        MoveSelector<TestdataSolution> childMoveSelector = SelectorTestUtils.mockMoveSelector(DummyMove.class,
                 new DummyMove("e1"), new DummyMove("e2"), new DummyMove("e3"), new DummyMove("e4"));
 
-        SelectionProbabilityWeightFactory<TestdataSolution, DummyMove> probabilityWeightFactory
-                = (scoreDirector, move) -> {
-            switch (move.getCode()) {
-                case "e1":
-                    return 1000.0;
-                case "e2":
-                    return 200.0;
-                case "e3":
-                    return 30.0;
-                case "e4":
-                    return 4.0;
-                default:
-                    throw new IllegalStateException("Unknown move (" + move + ").");
-            }
-        };
-        MoveSelector moveSelector = new ProbabilityMoveSelector(childMoveSelector, SelectionCacheType.STEP,
-                probabilityWeightFactory);
+        SelectionProbabilityWeightFactory<TestdataSolution, DummyMove> probabilityWeightFactory =
+                (scoreDirector, move) -> {
+                    switch (move.getCode()) {
+                        case "e1":
+                            return 1000.0;
+                        case "e2":
+                            return 200.0;
+                        case "e3":
+                            return 30.0;
+                        case "e4":
+                            return 4.0;
+                        default:
+                            throw new IllegalStateException("Unknown move (" + move + ").");
+                    }
+                };
+        MoveSelector<TestdataSolution> moveSelector = new ProbabilityMoveSelector<>(childMoveSelector,
+                SelectionCacheType.STEP, probabilityWeightFactory);
 
         Random workingRandom = mock(Random.class);
         when(workingRandom.nextDouble()).thenReturn(1222.0 / 1234.0, 111.0 / 1234.0, 0.0, 1230.0 / 1234.0, 1199.0 / 1234.0);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope<TestdataSolution> solverScope = mock(SolverScope.class);
         when(solverScope.getWorkingRandom()).thenReturn(workingRandom);
         moveSelector.solvingStarted(solverScope);
-        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
+        AbstractPhaseScope<TestdataSolution> phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         when(phaseScopeA.getWorkingRandom()).thenReturn(workingRandom);
         moveSelector.phaseStarted(phaseScopeA);
-        AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
+        AbstractStepScope<TestdataSolution> stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         when(stepScopeA1.getWorkingRandom()).thenReturn(workingRandom);
         moveSelector.stepStarted(stepScopeA1);

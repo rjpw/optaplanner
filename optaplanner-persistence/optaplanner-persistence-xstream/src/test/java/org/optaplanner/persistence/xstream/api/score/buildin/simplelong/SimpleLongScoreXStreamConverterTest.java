@@ -16,19 +16,20 @@
 
 package org.optaplanner.persistence.xstream.api.score.buildin.simplelong;
 
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.simplelong.SimpleLongScore;
 import org.optaplanner.persistence.xstream.api.score.AbstractScoreXStreamConverterTest;
+
+import com.thoughtworks.xstream.annotations.XStreamConverter;
 
 public class SimpleLongScoreXStreamConverterTest extends AbstractScoreXStreamConverterTest {
 
     @Test
     public void simpleLongScore() {
         assertSerializeAndDeserialize(null, new TestSimpleLongScoreWrapper(null));
-        SimpleLongScore score = SimpleLongScore.valueOf(1234L);
+        SimpleLongScore score = SimpleLongScore.of(1234L);
         assertSerializeAndDeserialize(score, new TestSimpleLongScoreWrapper(score));
-        score = SimpleLongScore.valueOfUninitialized(-7, 1234L);
+        score = SimpleLongScore.ofUninitialized(-7, 1234L);
         assertSerializeAndDeserialize(score, new TestSimpleLongScoreWrapper(score));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,20 +28,21 @@ import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractRand
 import org.optaplanner.core.impl.heuristic.selector.move.generic.GenericMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChain;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChainSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class SubChainSwapMoveSelector extends GenericMoveSelector {
+public class SubChainSwapMoveSelector<Solution_> extends GenericMoveSelector<Solution_> {
 
-    protected final SubChainSelector leftSubChainSelector;
-    protected final SubChainSelector rightSubChainSelector;
-    protected final GenuineVariableDescriptor variableDescriptor;
+    protected final SubChainSelector<Solution_> leftSubChainSelector;
+    protected final SubChainSelector<Solution_> rightSubChainSelector;
+    protected final GenuineVariableDescriptor<Solution_> variableDescriptor;
     protected final boolean randomSelection;
     protected final boolean selectReversingMoveToo;
 
     protected SingletonInverseVariableSupply inverseVariableSupply = null;
 
-    public SubChainSwapMoveSelector(SubChainSelector leftSubChainSelector, SubChainSelector rightSubChainSelector,
-            boolean randomSelection, boolean selectReversingMoveToo) {
+    public SubChainSwapMoveSelector(SubChainSelector<Solution_> leftSubChainSelector,
+            SubChainSelector<Solution_> rightSubChainSelector, boolean randomSelection,
+            boolean selectReversingMoveToo) {
         this.leftSubChainSelector = leftSubChainSelector;
         this.rightSubChainSelector = rightSubChainSelector;
         this.randomSelection = randomSelection;
@@ -61,14 +62,14 @@ public class SubChainSwapMoveSelector extends GenericMoveSelector {
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
-        SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
-        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand(variableDescriptor));
+        SupplyManager<Solution_> supplyManager = solverScope.getScoreDirector().getSupplyManager();
+        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand<>(variableDescriptor));
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         inverseVariableSupply = null;
     }
@@ -93,15 +94,16 @@ public class SubChainSwapMoveSelector extends GenericMoveSelector {
     }
 
     @Override
-    public Iterator<Move> iterator() {
+    public Iterator<Move<Solution_>> iterator() {
         if (!randomSelection) {
-            return new AbstractOriginalSwapIterator<Move, SubChain>(leftSubChainSelector, rightSubChainSelector) {
-                private Move nextReversingSelection = null;
+            return new AbstractOriginalSwapIterator<Solution_, Move<Solution_>, SubChain>(leftSubChainSelector,
+                    rightSubChainSelector) {
+                private Move<Solution_> nextReversingSelection = null;
 
                 @Override
-                protected Move createUpcomingSelection() {
+                protected Move<Solution_> createUpcomingSelection() {
                     if (selectReversingMoveToo && nextReversingSelection != null) {
-                        Move upcomingSelection = nextReversingSelection;
+                        Move<Solution_> upcomingSelection = nextReversingSelection;
                         nextReversingSelection = null;
                         return upcomingSelection;
                     }
@@ -109,22 +111,26 @@ public class SubChainSwapMoveSelector extends GenericMoveSelector {
                 }
 
                 @Override
-                protected Move newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
+                protected Move<Solution_> newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
                     if (selectReversingMoveToo) {
-                        nextReversingSelection = new SubChainReversingSwapMove(
-                                variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection);
+                        nextReversingSelection = new SubChainReversingSwapMove<>(variableDescriptor,
+                                inverseVariableSupply, leftSubSelection, rightSubSelection);
                     }
-                    return new SubChainSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection);
+                    return new SubChainSwapMove<>(variableDescriptor, inverseVariableSupply, leftSubSelection,
+                            rightSubSelection);
                 }
             };
         } else {
-            return new AbstractRandomSwapIterator<Move, SubChain>(leftSubChainSelector, rightSubChainSelector) {
+            return new AbstractRandomSwapIterator<Solution_, Move<Solution_>, SubChain>(leftSubChainSelector,
+                    rightSubChainSelector) {
                 @Override
-                protected Move newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
+                protected Move<Solution_> newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
                     boolean reversing = selectReversingMoveToo && workingRandom.nextBoolean();
                     return reversing
-                            ? new SubChainReversingSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection)
-                            : new SubChainSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection);
+                            ? new SubChainReversingSwapMove<>(variableDescriptor, inverseVariableSupply,
+                                    leftSubSelection, rightSubSelection)
+                            : new SubChainSwapMove<>(variableDescriptor, inverseVariableSupply, leftSubSelection,
+                                    rightSubSelection);
                 }
             };
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 import org.optaplanner.core.impl.score.ScoreUtils;
 import org.optaplanner.core.impl.score.definition.ScoreDefinition;
-import org.optaplanner.core.impl.solver.ChildThreadType;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
-public class BestScoreTermination extends AbstractTermination {
+public class BestScoreTermination<Solution_> extends AbstractTermination<Solution_> {
 
     private final int levelsSize;
     private final Score bestScoreLimit;
@@ -52,13 +52,13 @@ public class BestScoreTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public boolean isSolverTerminated(DefaultSolverScope solverScope) {
+    public boolean isSolverTerminated(SolverScope<Solution_> solverScope) {
         return isTerminated(solverScope.isBestSolutionInitialized(), solverScope.getBestScore());
     }
 
     @Override
-    public boolean isPhaseTerminated(AbstractPhaseScope phaseScope) {
-        return isTerminated(phaseScope.isBestSolutionInitialized(), phaseScope.getBestScore());
+    public boolean isPhaseTerminated(AbstractPhaseScope<Solution_> phaseScope) {
+        return isTerminated(phaseScope.isBestSolutionInitialized(), (Score) phaseScope.getBestScore());
     }
 
     protected boolean isTerminated(boolean bestSolutionInitialized, Score bestScore) {
@@ -70,14 +70,14 @@ public class BestScoreTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public double calculateSolverTimeGradient(DefaultSolverScope solverScope) {
+    public double calculateSolverTimeGradient(SolverScope<Solution_> solverScope) {
         Score startingInitializedScore = solverScope.getStartingInitializedScore();
         Score bestScore = solverScope.getBestScore();
         return calculateTimeGradient(startingInitializedScore, bestScoreLimit, bestScore);
     }
 
     @Override
-    public double calculatePhaseTimeGradient(AbstractPhaseScope phaseScope) {
+    public double calculatePhaseTimeGradient(AbstractPhaseScope<Solution_> phaseScope) {
         Score startingInitializedScore = phaseScope.getStartingScore();
         Score bestScore = phaseScope.getBestScore();
         return calculateTimeGradient(startingInitializedScore, bestScoreLimit, bestScore);
@@ -101,7 +101,8 @@ public class BestScoreTermination extends AbstractTermination {
     // ************************************************************************
 
     @Override
-    public Termination createChildThreadTermination(DefaultSolverScope solverScope, ChildThreadType childThreadType) {
+    public Termination<Solution_> createChildThreadTermination(SolverScope<Solution_> solverScope,
+            ChildThreadType childThreadType) {
         // TODO FIXME through some sort of solverlistener and async behaviour...
         throw new UnsupportedOperationException("This terminationClass (" + getClass()
                 + ") does not yet support being used in child threads of type (" + childThreadType + ").");

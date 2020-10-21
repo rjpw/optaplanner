@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,25 +36,26 @@ import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.phase.AbstractPhase;
 import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 import org.optaplanner.core.impl.solver.recaller.BestSolutionRecaller;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.solver.termination.Termination;
 
 /**
  * Default implementation of {@link ExhaustiveSearchPhase}.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
 public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solution_>
         implements ExhaustiveSearchPhase<Solution_> {
 
     protected Comparator<ExhaustiveSearchNode> nodeComparator;
-    protected EntitySelector entitySelector;
+    protected EntitySelector<Solution_> entitySelector;
     protected ExhaustiveSearchDecider<Solution_> decider;
 
     protected boolean assertWorkingSolutionScoreFromScratch = false;
     protected boolean assertExpectedWorkingSolutionScore = false;
 
     public DefaultExhaustiveSearchPhase(int phaseIndex, String logIndentation,
-            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination termination) {
+            BestSolutionRecaller<Solution_> bestSolutionRecaller, Termination<Solution_> termination) {
         super(phaseIndex, logIndentation, bestSolutionRecaller, termination);
     }
 
@@ -66,11 +67,11 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
         this.nodeComparator = nodeComparator;
     }
 
-    public EntitySelector getEntitySelector() {
+    public EntitySelector<Solution_> getEntitySelector() {
         return entitySelector;
     }
 
-    public void setEntitySelector(EntitySelector entitySelector) {
+    public void setEntitySelector(EntitySelector<Solution_> entitySelector) {
         this.entitySelector = entitySelector;
     }
 
@@ -100,7 +101,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
     // ************************************************************************
 
     @Override
-    public void solve(DefaultSolverScope<Solution_> solverScope) {
+    public void solve(SolverScope<Solution_> solverScope) {
         SortedSet<ExhaustiveSearchNode> expandableNodeQueue = new TreeSet<>(nodeComparator);
         ExhaustiveSearchPhaseScope<Solution_> phaseScope = new ExhaustiveSearchPhaseScope<>(solverScope);
         phaseScope.setExpandableNodeQueue(expandableNodeQueue);
@@ -121,7 +122,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
     }
 
     @Override
-    public void solvingStarted(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
         super.solvingStarted(solverScope);
         entitySelector.solvingStarted(solverScope);
         decider.solvingStarted(solverScope);
@@ -146,7 +147,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
         }
         List<ExhaustiveSearchLayer> layerList = new ArrayList<>((int) entitySize);
         int depth = 0;
-        InnerScoreDirector<Solution_> scoreDirector = phaseScope.getScoreDirector();
+        InnerScoreDirector<Solution_, ?> scoreDirector = phaseScope.getScoreDirector();
         for (Object entity : entitySelector) {
             ExhaustiveSearchLayer layer = new ExhaustiveSearchLayer(depth, entity);
             // Keep in sync with ExhaustiveSearchPhaseConfig.buildMoveSelectorConfig()
@@ -171,7 +172,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
         ExhaustiveSearchNode startNode = new ExhaustiveSearchNode(startLayer, null);
 
         if (decider.isScoreBounderEnabled()) {
-            InnerScoreDirector<Solution_> scoreDirector = phaseScope.getScoreDirector();
+            InnerScoreDirector<Solution_, ?> scoreDirector = phaseScope.getScoreDirector();
             Score score = scoreDirector.calculateScore();
             startNode.setScore(score);
             ScoreBounder scoreBounder = decider.getScoreBounder();
@@ -213,14 +214,14 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
         restoreMoveList.addAll(oldMoveList);
         Collections.reverse(newMoveList);
         restoreMoveList.addAll(newMoveList);
-        InnerScoreDirector<Solution_> scoreDirector = phaseScope.getScoreDirector();
+        InnerScoreDirector<Solution_, ?> scoreDirector = phaseScope.getScoreDirector();
         restoreMoveList.forEach(restoreMove -> restoreMove.doMove(scoreDirector));
         // There is no need to recalculate the score, but we still need to set it
         phaseScope.getSolutionDescriptor().setScore(phaseScope.getWorkingSolution(), stepScope.getStartingStepScore());
         if (assertWorkingSolutionScoreFromScratch) {
             // In BRUTE_FORCE the stepScore can be null because it was not calculated
             if (stepScope.getStartingStepScore() != null) {
-                phaseScope.assertWorkingScoreFromScratch(stepScope.getStartingStepScore(), restoreMoveList);
+                phaseScope.assertPredictedScoreFromScratch(stepScope.getStartingStepScore(), restoreMoveList);
             }
         }
         if (assertExpectedWorkingSolutionScore) {
@@ -254,7 +255,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
         decider.phaseEnded(phaseScope);
         phaseScope.endingNow();
         logger.info("{}Exhaustive Search phase ({}) ended: time spent ({}), best score ({}),"
-                        + " score calculation speed ({}/sec), step total ({}).",
+                + " score calculation speed ({}/sec), step total ({}).",
                 logIndentation,
                 phaseIndex,
                 phaseScope.calculateSolverTimeMillisSpentUpToNow(),
@@ -264,7 +265,7 @@ public class DefaultExhaustiveSearchPhase<Solution_> extends AbstractPhase<Solut
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope<Solution_> solverScope) {
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
         super.solvingEnded(solverScope);
         entitySelector.solvingEnded(solverScope);
         decider.solvingEnded(solverScope);

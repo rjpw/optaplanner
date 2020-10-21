@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,27 +17,27 @@
 package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 
 import java.util.Iterator;
-import java.util.List;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionFilter;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
-public class FilteringMoveSelector extends AbstractMoveSelector {
+public class FilteringMoveSelector<Solution_> extends AbstractMoveSelector<Solution_> {
 
-    protected final MoveSelector childMoveSelector;
-    protected final List<SelectionFilter> filterList;
+    protected final MoveSelector<Solution_> childMoveSelector;
+    protected final SelectionFilter<Solution_, Move<Solution_>> filter;
     protected final boolean bailOutEnabled;
 
-    protected ScoreDirector scoreDirector = null;
+    protected ScoreDirector<Solution_> scoreDirector = null;
 
-    public FilteringMoveSelector(MoveSelector childMoveSelector, List<SelectionFilter> filterList) {
+    public FilteringMoveSelector(MoveSelector<Solution_> childMoveSelector,
+            SelectionFilter<Solution_, Move<Solution_>> filter) {
         this.childMoveSelector = childMoveSelector;
-        this.filterList = filterList;
+        this.filter = filter;
         bailOutEnabled = childMoveSelector.isNeverEnding();
         phaseLifecycleSupport.addEventListener(childMoveSelector);
     }
@@ -47,13 +47,13 @@ public class FilteringMoveSelector extends AbstractMoveSelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
@@ -74,23 +74,23 @@ public class FilteringMoveSelector extends AbstractMoveSelector {
     }
 
     @Override
-    public Iterator<Move> iterator() {
+    public Iterator<Move<Solution_>> iterator() {
         return new JustInTimeFilteringMoveIterator(childMoveSelector.iterator(), determineBailOutSize());
     }
 
-    private class JustInTimeFilteringMoveIterator extends UpcomingSelectionIterator<Move> {
+    private class JustInTimeFilteringMoveIterator extends UpcomingSelectionIterator<Move<Solution_>> {
 
-        private final Iterator<Move> childMoveIterator;
+        private final Iterator<Move<Solution_>> childMoveIterator;
         private final long bailOutSize;
 
-        public JustInTimeFilteringMoveIterator(Iterator<Move> childMoveIterator, long bailOutSize) {
+        public JustInTimeFilteringMoveIterator(Iterator<Move<Solution_>> childMoveIterator, long bailOutSize) {
             this.childMoveIterator = childMoveIterator;
             this.bailOutSize = bailOutSize;
         }
 
         @Override
-        protected Move createUpcomingSelection() {
-            Move next;
+        protected Move<Solution_> createUpcomingSelection() {
+            Move<Solution_> next;
             long attemptsBeforeBailOut = bailOutSize;
             do {
                 if (!childMoveIterator.hasNext()) {
@@ -119,8 +119,8 @@ public class FilteringMoveSelector extends AbstractMoveSelector {
         return childMoveSelector.getSize() * 10L;
     }
 
-    protected boolean accept(ScoreDirector scoreDirector, Move move) {
-        for (SelectionFilter filter : filterList) {
+    protected boolean accept(ScoreDirector<Solution_> scoreDirector, Move<Solution_> move) {
+        if (filter != null) {
             if (!filter.accept(scoreDirector, move)) {
                 return false;
             }

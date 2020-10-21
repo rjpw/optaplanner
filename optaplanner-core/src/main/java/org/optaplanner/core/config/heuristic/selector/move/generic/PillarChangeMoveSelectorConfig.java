@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,37 +16,21 @@
 
 package org.optaplanner.core.config.heuristic.selector.move.generic;
 
-import java.util.Collections;
-import java.util.List;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlType;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionOrder;
-import org.optaplanner.core.config.heuristic.selector.entity.pillar.PillarSelectorConfig;
-import org.optaplanner.core.config.heuristic.selector.move.MoveSelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.value.ValueSelectorConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.impl.heuristic.selector.entity.pillar.PillarSelector;
-import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.heuristic.selector.move.generic.PillarChangeMoveSelector;
-import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
 
-@XStreamAlias("pillarChangeMoveSelector")
-public class PillarChangeMoveSelectorConfig extends MoveSelectorConfig<PillarChangeMoveSelectorConfig> {
+@XmlType(propOrder = {
+        "valueSelectorConfig"
+})
+public class PillarChangeMoveSelectorConfig extends AbstractPillarMoveSelectorConfig<PillarChangeMoveSelectorConfig> {
 
-    @XStreamAlias("pillarSelector")
-    private PillarSelectorConfig pillarSelectorConfig = null;
-    @XStreamAlias("valueSelector")
+    public static final String XML_ELEMENT_NAME = "pillarChangeMoveSelector";
+
+    @XmlElement(name = "valueSelector")
     private ValueSelectorConfig valueSelectorConfig = null;
-
-    public PillarSelectorConfig getPillarSelectorConfig() {
-        return pillarSelectorConfig;
-    }
-
-    public void setPillarSelectorConfig(PillarSelectorConfig pillarSelectorConfig) {
-        this.pillarSelectorConfig = pillarSelectorConfig;
-    }
 
     public ValueSelectorConfig getValueSelectorConfig() {
         return valueSelectorConfig;
@@ -56,33 +40,16 @@ public class PillarChangeMoveSelectorConfig extends MoveSelectorConfig<PillarCha
         this.valueSelectorConfig = valueSelectorConfig;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
     @Override
-    public MoveSelector buildBaseMoveSelector(HeuristicConfigPolicy configPolicy,
-            SelectionCacheType minimumCacheType, boolean randomSelection) {
-        PillarSelectorConfig pillarSelectorConfig_ = pillarSelectorConfig == null ? new PillarSelectorConfig()
-                : pillarSelectorConfig;
-        List<String> variableNameIncludeList = valueSelectorConfig == null ? null
-                : valueSelectorConfig.getVariableName() == null ? null
-                : Collections.singletonList(valueSelectorConfig.getVariableName());
-        PillarSelector pillarSelector = pillarSelectorConfig_.buildPillarSelector(configPolicy,
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection), variableNameIncludeList);
-        ValueSelectorConfig valueSelectorConfig_ = valueSelectorConfig == null ? new ValueSelectorConfig()
-                : valueSelectorConfig;
-        ValueSelector valueSelector = valueSelectorConfig_.buildValueSelector(configPolicy,
-                pillarSelector.getEntityDescriptor(),
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection));
-        return new PillarChangeMoveSelector(pillarSelector, valueSelector, randomSelection);
+    public PillarChangeMoveSelectorConfig inherit(PillarChangeMoveSelectorConfig inheritedConfig) {
+        super.inherit(inheritedConfig);
+        valueSelectorConfig = ConfigUtils.inheritConfig(valueSelectorConfig, inheritedConfig.getValueSelectorConfig());
+        return this;
     }
 
     @Override
-    public void inherit(PillarChangeMoveSelectorConfig inheritedConfig) {
-        super.inherit(inheritedConfig);
-        pillarSelectorConfig = ConfigUtils.inheritConfig(pillarSelectorConfig, inheritedConfig.getPillarSelectorConfig());
-        valueSelectorConfig = ConfigUtils.inheritConfig(valueSelectorConfig, inheritedConfig.getValueSelectorConfig());
+    public PillarChangeMoveSelectorConfig copyConfig() {
+        return new PillarChangeMoveSelectorConfig().inherit(this);
     }
 
     @Override

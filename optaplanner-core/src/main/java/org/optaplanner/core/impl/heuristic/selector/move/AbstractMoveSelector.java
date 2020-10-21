@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@ import org.optaplanner.core.impl.heuristic.selector.AbstractSelector;
 
 /**
  * Abstract superclass for {@link MoveSelector}.
+ *
  * @see MoveSelector
  */
-public abstract class AbstractMoveSelector extends AbstractSelector implements MoveSelector {
+public abstract class AbstractMoveSelector<Solution_> extends AbstractSelector<Solution_>
+        implements MoveSelector<Solution_> {
 
 }

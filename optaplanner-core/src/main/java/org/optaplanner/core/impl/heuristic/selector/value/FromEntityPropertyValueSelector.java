@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,10 @@ import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 
 /**
  * This is the common {@link ValueSelector} implementation.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-public class FromEntityPropertyValueSelector<Solution_> extends AbstractValueSelector {
+public class FromEntityPropertyValueSelector<Solution_> extends AbstractValueSelector<Solution_> {
 
     protected final ValueRangeDescriptor<Solution_> valueRangeDescriptor;
     protected final boolean randomSelection;
@@ -47,14 +48,14 @@ public class FromEntityPropertyValueSelector<Solution_> extends AbstractValueSel
     }
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
         // type cast in order to avoid SolverLifeCycleListener and all its children needing to be generified
-        workingSolution = (Solution_) phaseScope.getWorkingSolution();
+        workingSolution = phaseScope.getWorkingSolution();
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         workingSolution = null;
     }
@@ -81,8 +82,7 @@ public class FromEntityPropertyValueSelector<Solution_> extends AbstractValueSel
 
     @Override
     public Iterator<Object> iterator(Object entity) {
-        ValueRange<Object> valueRange = (ValueRange<Object>)
-                valueRangeDescriptor.extractValueRange(workingSolution, entity);
+        ValueRange<Object> valueRange = (ValueRange<Object>) valueRangeDescriptor.extractValueRange(workingSolution, entity);
         if (!randomSelection) {
             return ((CountableValueRange<Object>) valueRange).createOriginalIterator();
         } else {
@@ -92,8 +92,7 @@ public class FromEntityPropertyValueSelector<Solution_> extends AbstractValueSel
 
     @Override
     public Iterator<Object> endingIterator(Object entity) {
-        ValueRange<Object> valueRange = (ValueRange<Object>)
-                valueRangeDescriptor.extractValueRange(workingSolution, entity);
+        ValueRange<Object> valueRange = (ValueRange<Object>) valueRangeDescriptor.extractValueRange(workingSolution, entity);
         return ((CountableValueRange<Object>) valueRange).createOriginalIterator();
     }
 

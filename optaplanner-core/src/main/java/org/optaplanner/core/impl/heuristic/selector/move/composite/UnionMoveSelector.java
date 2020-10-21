@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,21 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.composite;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import com.google.common.collect.Iterators;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.SelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.core.impl.solver.random.RandomUtils;
 
 /**
@@ -39,20 +39,21 @@ import org.optaplanner.core.impl.solver.random.RandomUtils;
  * For example: a union of {A, B, C} and {X, Y} will result in {A, B, C, X, Y}.
  * <p>
  * Warning: there is no duplicated {@link Move} check, so union of {A, B, C} and {B, D} will result in {A, B, C, B, D}.
+ *
  * @see CompositeMoveSelector
  */
-public class UnionMoveSelector extends CompositeMoveSelector {
+public class UnionMoveSelector<Solution_> extends CompositeMoveSelector<Solution_> {
 
-    protected final SelectionProbabilityWeightFactory selectorProbabilityWeightFactory;
+    protected final SelectionProbabilityWeightFactory<Solution_, MoveSelector<Solution_>> selectorProbabilityWeightFactory;
 
-    protected ScoreDirector scoreDirector;
+    protected ScoreDirector<Solution_> scoreDirector;
 
-    public UnionMoveSelector(List<MoveSelector> childMoveSelectorList, boolean randomSelection) {
+    public UnionMoveSelector(List<MoveSelector<Solution_>> childMoveSelectorList, boolean randomSelection) {
         this(childMoveSelectorList, randomSelection, null);
     }
 
-    public UnionMoveSelector(List<MoveSelector> childMoveSelectorList, boolean randomSelection,
-            SelectionProbabilityWeightFactory selectorProbabilityWeightFactory) {
+    public UnionMoveSelector(List<MoveSelector<Solution_>> childMoveSelectorList, boolean randomSelection,
+            SelectionProbabilityWeightFactory<Solution_, MoveSelector<Solution_>> selectorProbabilityWeightFactory) {
         super(childMoveSelectorList, randomSelection);
         this.selectorProbabilityWeightFactory = selectorProbabilityWeightFactory;
         if (!randomSelection) {
@@ -66,20 +67,20 @@ public class UnionMoveSelector extends CompositeMoveSelector {
             if (selectorProbabilityWeightFactory == null) {
                 throw new IllegalArgumentException("The selector (" + this
                         + ") with randomSelection (" + randomSelection
-                        + ") requires a selectorProbabilityWeightFactory ("  + selectorProbabilityWeightFactory
+                        + ") requires a selectorProbabilityWeightFactory (" + selectorProbabilityWeightFactory
                         + ").");
             }
         }
     }
 
     @Override
-    public void stepStarted(AbstractStepScope stepScope) {
+    public void stepStarted(AbstractStepScope<Solution_> stepScope) {
         scoreDirector = stepScope.getScoreDirector();
         super.stepStarted(stepScope);
     }
 
     @Override
-    public void stepEnded(AbstractStepScope stepScope) {
+    public void stepEnded(AbstractStepScope<Solution_> stepScope) {
         super.stepEnded(stepScope);
         scoreDirector = null;
     }
@@ -91,7 +92,7 @@ public class UnionMoveSelector extends CompositeMoveSelector {
     @Override
     public boolean isNeverEnding() {
         if (randomSelection) {
-            for (MoveSelector moveSelector : childMoveSelectorList) {
+            for (MoveSelector<Solution_> moveSelector : childMoveSelectorList) {
                 if (moveSelector.isNeverEnding()) {
                     return true;
                 }
@@ -100,49 +101,50 @@ public class UnionMoveSelector extends CompositeMoveSelector {
             return false;
         } else {
             // Only the last childMoveSelector can be neverEnding
-            if (!childMoveSelectorList.isEmpty()
-                    && childMoveSelectorList.get(childMoveSelectorList.size() - 1).isNeverEnding()) {
-                return true;
-            }
-            return false;
+            return !childMoveSelectorList.isEmpty()
+                    && childMoveSelectorList.get(childMoveSelectorList.size() - 1).isNeverEnding();
         }
     }
 
     @Override
     public long getSize() {
         long size = 0L;
-        for (MoveSelector moveSelector : childMoveSelectorList) {
+        for (MoveSelector<Solution_> moveSelector : childMoveSelectorList) {
             size += moveSelector.getSize();
         }
         return size;
     }
 
     @Override
-    public Iterator<Move> iterator() {
+    public Iterator<Move<Solution_>> iterator() {
         if (!randomSelection) {
-            Iterator<Move> iterator = Collections.emptyIterator();
-            for (MoveSelector moveSelector : childMoveSelectorList) {
-                iterator = Iterators.concat(iterator, moveSelector.iterator());
+            Stream<Move<Solution_>> stream = Stream.empty();
+            for (MoveSelector<Solution_> moveSelector : childMoveSelectorList) {
+                stream = Stream.concat(stream, toStream(moveSelector));
             }
-            return iterator;
+            return stream.iterator();
         } else {
             return new RandomUnionMoveIterator();
         }
     }
 
-    public class RandomUnionMoveIterator extends SelectionIterator<Move> {
+    private static <Solution_> Stream<Move<Solution_>> toStream(MoveSelector<Solution_> moveSelector) {
+        return StreamSupport.stream(moveSelector.spliterator(), false);
+    }
 
-        protected final Map<Iterator<Move>, ProbabilityItem> probabilityItemMap;
+    public class RandomUnionMoveIterator extends SelectionIterator<Move<Solution_>> {
 
-        protected final NavigableMap<Double, Iterator<Move>> moveIteratorMap;
+        protected final Map<Iterator<Move<Solution_>>, ProbabilityItem<Solution_>> probabilityItemMap;
+
+        protected final NavigableMap<Double, Iterator<Move<Solution_>>> moveIteratorMap;
         protected double probabilityWeightTotal;
         protected boolean stale;
 
         public RandomUnionMoveIterator() {
             probabilityItemMap = new LinkedHashMap<>(childMoveSelectorList.size());
-            for (MoveSelector moveSelector : childMoveSelectorList) {
-                Iterator<Move> moveIterator = moveSelector.iterator();
-                ProbabilityItem probabilityItem = new ProbabilityItem();
+            for (MoveSelector<Solution_> moveSelector : childMoveSelectorList) {
+                Iterator<Move<Solution_>> moveIterator = moveSelector.iterator();
+                ProbabilityItem<Solution_> probabilityItem = new ProbabilityItem<>();
                 probabilityItem.moveSelector = moveSelector;
                 probabilityItem.moveIterator = moveIterator;
                 probabilityItem.probabilityWeight = selectorProbabilityWeightFactory
@@ -150,7 +152,7 @@ public class UnionMoveSelector extends CompositeMoveSelector {
                 if (probabilityItem.probabilityWeight < 0.0) {
                     throw new IllegalStateException(
                             "The selectorProbabilityWeightFactory (" + selectorProbabilityWeightFactory
-                            + ") returned a negative probabilityWeight (" + probabilityItem.probabilityWeight + ").");
+                                    + ") returned a negative probabilityWeight (" + probabilityItem.probabilityWeight + ").");
                 }
                 probabilityItemMap.put(moveIterator, probabilityItem);
             }
@@ -167,15 +169,15 @@ public class UnionMoveSelector extends CompositeMoveSelector {
         }
 
         @Override
-        public Move next() {
+        public Move<Solution_> next() {
             if (stale) {
                 refreshMoveIteratorMap();
             }
             double randomOffset = RandomUtils.nextDouble(workingRandom, probabilityWeightTotal);
-            Map.Entry<Double, Iterator<Move>> entry = moveIteratorMap.floorEntry(randomOffset);
+            Map.Entry<Double, Iterator<Move<Solution_>>> entry = moveIteratorMap.floorEntry(randomOffset);
             // entry is never null because randomOffset < probabilityWeightTotal
-            Iterator<Move> moveIterator = entry.getValue();
-            Move next = moveIterator.next();
+            Iterator<Move<Solution_>> moveIterator = entry.getValue();
+            Move<Solution_> next = moveIterator.next();
             if (!moveIterator.hasNext()) {
                 stale = true;
             }
@@ -185,7 +187,7 @@ public class UnionMoveSelector extends CompositeMoveSelector {
         private void refreshMoveIteratorMap() {
             moveIteratorMap.clear();
             double probabilityWeightOffset = 0.0;
-            for (ProbabilityItem probabilityItem : probabilityItemMap.values()) {
+            for (ProbabilityItem<Solution_> probabilityItem : probabilityItemMap.values()) {
                 if (probabilityItem.probabilityWeight != 0.0
                         && probabilityItem.moveIterator.hasNext()) {
                     moveIteratorMap.put(probabilityWeightOffset, probabilityItem.moveIterator);
@@ -197,10 +199,10 @@ public class UnionMoveSelector extends CompositeMoveSelector {
 
     }
 
-    private static class ProbabilityItem {
+    private static class ProbabilityItem<Solution_> {
 
-        protected MoveSelector moveSelector;
-        protected Iterator<Move> moveIterator;
+        protected MoveSelector<Solution_> moveSelector;
+        protected Iterator<Move<Solution_>> moveIterator;
         protected double probabilityWeight;
 
     }

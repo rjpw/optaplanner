@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.optaplanner.core.impl.domain.lookup;
 
 import java.util.Map;
+
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
 
 public class EqualsLookUpStrategy implements LookUpStrategy {
 
@@ -40,6 +42,20 @@ public class EqualsLookUpStrategy implements LookUpStrategy {
 
     @Override
     public <E> E lookUpWorkingObject(Map<Object, Object> idToWorkingObjectMap, E externalObject) {
+        E workingObject = (E) idToWorkingObjectMap.get(externalObject);
+        if (workingObject == null) {
+            throw new IllegalStateException("The externalObject (" + externalObject
+                    + ") has no known workingObject (" + workingObject + ").\n"
+                    + "Maybe the workingObject was never added because the planning solution doesn't have a @"
+                    + ProblemFactCollectionProperty.class.getSimpleName()
+                    + " annotation on a member with instances of the externalObject's class ("
+                    + externalObject.getClass() + ").");
+        }
+        return workingObject;
+    }
+
+    @Override
+    public <E> E lookUpWorkingObjectIfExists(Map<Object, Object> idToWorkingObjectMap, E externalObject) {
         return (E) idToWorkingObjectMap.get(externalObject);
     }
 

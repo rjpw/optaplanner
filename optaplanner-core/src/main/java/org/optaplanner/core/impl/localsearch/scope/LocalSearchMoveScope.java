@@ -16,64 +16,27 @@
 
 package org.optaplanner.core.impl.localsearch.scope;
 
-import java.util.Random;
-
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.impl.heuristic.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.phase.scope.AbstractMoveScope;
 
 /**
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-public class LocalSearchMoveScope<Solution_> {
+public class LocalSearchMoveScope<Solution_> extends AbstractMoveScope<Solution_> {
 
     private final LocalSearchStepScope<Solution_> stepScope;
 
-    private int moveIndex;
-    private Move<Solution_> move = null;
-    private Move<Solution_> undoMove = null;
-    private Score score = null;
     private Boolean accepted = null;
 
-    public LocalSearchMoveScope(LocalSearchStepScope<Solution_> stepScope) {
+    public LocalSearchMoveScope(LocalSearchStepScope<Solution_> stepScope, int moveIndex, Move<Solution_> move) {
+        super(moveIndex, move);
         this.stepScope = stepScope;
     }
 
+    @Override
     public LocalSearchStepScope<Solution_> getStepScope() {
         return stepScope;
-    }
-
-    public int getMoveIndex() {
-        return moveIndex;
-    }
-
-    public void setMoveIndex(int moveIndex) {
-        this.moveIndex = moveIndex;
-    }
-
-    public Move<Solution_> getMove() {
-        return move;
-    }
-
-    public void setMove(Move<Solution_> move) {
-        this.move = move;
-    }
-
-    public Move<Solution_> getUndoMove() {
-        return undoMove;
-    }
-
-    public void setUndoMove(Move<Solution_> undoMove) {
-        this.undoMove = undoMove;
-    }
-
-    public Score getScore() {
-        return score;
-    }
-
-    public void setScore(Score score) {
-        this.score = score;
     }
 
     public Boolean getAccepted() {
@@ -87,22 +50,5 @@ public class LocalSearchMoveScope<Solution_> {
     // ************************************************************************
     // Calculated methods
     // ************************************************************************
-
-    public ScoreDirector<Solution_> getScoreDirector() {
-        return stepScope.getScoreDirector();
-    }
-
-    public Solution_ getWorkingSolution() {
-        return stepScope.getWorkingSolution();
-    }
-
-    public Random getWorkingRandom() {
-        return stepScope.getWorkingRandom();
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "(" + stepScope.getStepIndex() + "/" + moveIndex + ")";
-    }
 
 }

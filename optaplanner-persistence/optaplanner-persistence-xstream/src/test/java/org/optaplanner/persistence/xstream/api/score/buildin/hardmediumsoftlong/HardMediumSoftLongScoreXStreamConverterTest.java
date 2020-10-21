@@ -16,19 +16,20 @@
 
 package org.optaplanner.persistence.xstream.api.score.buildin.hardmediumsoftlong;
 
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.hardmediumsoftlong.HardMediumSoftLongScore;
 import org.optaplanner.persistence.xstream.api.score.AbstractScoreXStreamConverterTest;
+
+import com.thoughtworks.xstream.annotations.XStreamConverter;
 
 public class HardMediumSoftLongScoreXStreamConverterTest extends AbstractScoreXStreamConverterTest {
 
     @Test
     public void serializeAndDeserialize() {
         assertSerializeAndDeserialize(null, new TestHardMediumSoftLongScoreWrapper(null));
-        HardMediumSoftLongScore score = HardMediumSoftLongScore.valueOf(1200L, 30L, 4L);
+        HardMediumSoftLongScore score = HardMediumSoftLongScore.of(1200L, 30L, 4L);
         assertSerializeAndDeserialize(score, new TestHardMediumSoftLongScoreWrapper(score));
-        score = HardMediumSoftLongScore.valueOfUninitialized(-7, 1200L, 30L, 4L);
+        score = HardMediumSoftLongScore.ofUninitialized(-7, 1200L, 30L, 4L);
         assertSerializeAndDeserialize(score, new TestHardMediumSoftLongScoreWrapper(score));
     }
 

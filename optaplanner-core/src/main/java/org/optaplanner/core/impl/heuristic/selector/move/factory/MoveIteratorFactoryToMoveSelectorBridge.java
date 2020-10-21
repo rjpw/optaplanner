@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,25 +18,31 @@ package org.optaplanner.core.impl.heuristic.selector.move.factory;
 
 import java.util.Iterator;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
 /**
  * Bridges a {@link MoveIteratorFactory} to a {@link MoveSelector}.
  */
-public class MoveIteratorFactoryToMoveSelectorBridge extends AbstractMoveSelector {
+public class MoveIteratorFactoryToMoveSelectorBridge<Solution_> extends AbstractMoveSelector<Solution_> {
 
-    protected final MoveIteratorFactory moveIteratorFactory;
+    protected final MoveIteratorFactory<Solution_, ?> moveIteratorFactory;
     protected final boolean randomSelection;
 
-    protected ScoreDirector scoreDirector = null;
+    protected ScoreDirector<Solution_> scoreDirector = null;
 
-    public MoveIteratorFactoryToMoveSelectorBridge(MoveIteratorFactory moveIteratorFactory, boolean randomSelection) {
+    public MoveIteratorFactoryToMoveSelectorBridge(MoveIteratorFactory<Solution_, ?> moveIteratorFactory,
+            boolean randomSelection) {
         this.moveIteratorFactory = moveIteratorFactory;
         this.randomSelection = randomSelection;
+    }
+
+    @Override
+    public boolean supportsPhaseAndSolverCaching() {
+        return true;
     }
 
     // ************************************************************************
@@ -44,13 +50,13 @@ public class MoveIteratorFactoryToMoveSelectorBridge extends AbstractMoveSelecto
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope<Solution_> phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
@@ -77,11 +83,12 @@ public class MoveIteratorFactoryToMoveSelectorBridge extends AbstractMoveSelecto
     }
 
     @Override
-    public Iterator<Move> iterator() {
+    public Iterator<Move<Solution_>> iterator() {
         if (!randomSelection) {
-            return moveIteratorFactory.createOriginalMoveIterator(scoreDirector);
+            return (Iterator<Move<Solution_>>) moveIteratorFactory.createOriginalMoveIterator(scoreDirector);
         } else {
-            return moveIteratorFactory.createRandomMoveIterator(scoreDirector, workingRandom);
+            return (Iterator<Move<Solution_>>) moveIteratorFactory.createRandomMoveIterator(scoreDirector,
+                    workingRandom);
         }
     }
 

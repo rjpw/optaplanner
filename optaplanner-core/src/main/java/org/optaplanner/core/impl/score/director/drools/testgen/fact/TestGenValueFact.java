@@ -22,6 +22,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,12 +95,15 @@ public class TestGenValueFact implements TestGenFact {
                     TestGenMapValueProvider mapValueProvider = new TestGenMapValueProvider(
                             (Map) value, id, typeArgs, existingInstances);
                     fields.add(new TestGenFactField(this, fieldName, mapValueProvider));
+                } else if (field.getType().equals(Date.class)) {
+                    TestGenDateValueProvider dateValueProvider = new TestGenDateValueProvider((Date) value);
+                    fields.add(new TestGenFactField(this, fieldName, dateValueProvider));
                 } else {
                     Method parseMethod = getParseMethod(field);
                     if (parseMethod != null) {
                         fields.add(new TestGenFactField(this, fieldName, new TestGenParsedValueProvider(parseMethod, value)));
                     } else {
-                        throw new IllegalStateException("Unsupported type: " + field.getType());
+                        throw new IllegalStateException("Unsupported type: " + field);
                     }
                 }
             } else {
@@ -108,12 +112,12 @@ public class TestGenValueFact implements TestGenFact {
         }
     }
 
-    private static Method getParseMethod(Field f) {
+    static Method getParseMethod(Field f) {
         for (Method m : f.getType().getMethods()) {
             if (Modifier.isStatic(m.getModifiers())
                     && f.getType().equals(m.getReturnType())
                     && m.getParameters().length == 1
-                    && m.getParameters()[0].getType().equals(String.class)
+                    && CharSequence.class.isAssignableFrom(m.getParameters()[0].getType())
                     && (m.getName().startsWith("parse") || m.getName().startsWith("valueOf"))) {
                 return m;
             }

@@ -36,14 +36,13 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.optaplanner.examples.common.persistence.AbstractTxtSolutionImporter;
 import org.optaplanner.examples.common.persistence.SolutionConverter;
 import org.optaplanner.examples.examination.app.ExaminationApp;
 import org.optaplanner.examples.examination.domain.Exam;
 import org.optaplanner.examples.examination.domain.Examination;
+import org.optaplanner.examples.examination.domain.ExaminationConstraintConfiguration;
 import org.optaplanner.examples.examination.domain.FollowingExam;
-import org.optaplanner.examples.examination.domain.InstitutionParametrization;
 import org.optaplanner.examples.examination.domain.LeadingExam;
 import org.optaplanner.examples.examination.domain.Period;
 import org.optaplanner.examples.examination.domain.PeriodPenalty;
@@ -77,8 +76,9 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
 
     public static class ExaminationInputBuilder extends TxtInputBuilder<Examination> {
 
+        private static final Comparator<Topic> COMPARATOR = Comparator.comparing(Topic::getStudentSize)
+                .thenComparingLong(Topic::getId);
         private Examination examination;
-
         private Map<Topic, Set<Topic>> coincidenceMap;
         private Map<Topic, Set<Topic>> exclusionMap;
         private Map<Topic, Set<Topic>> afterMap;
@@ -306,7 +306,7 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
                 for (Topic middleTopic : new ArrayList<>(middleTopicSet)) {
                     for (Topic rightTopic : new ArrayList<>(coincidenceMap.get(middleTopic))) {
                         if (rightTopic != leftTopic
-                                 && !middleTopicSet.contains(rightTopic)) {
+                                && !middleTopicSet.contains(rightTopic)) {
                             PeriodPenalty indirectPeriodPenalty = new PeriodPenalty();
                             indirectPeriodPenalty.setId((long) id);
                             id++;
@@ -323,7 +323,6 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
                             }
                         }
                     }
-
                 }
             }
             // createIndirectPeriodPenalties of type AFTER
@@ -392,23 +391,23 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
         }
 
         private void readInstitutionalWeighting() throws IOException {
-            InstitutionParametrization institutionParametrization = new InstitutionParametrization();
-            institutionParametrization.setId(0L);
+            ExaminationConstraintConfiguration constraintConfiguration = new ExaminationConstraintConfiguration();
+            constraintConfiguration.setId(0L);
             String[] lineTokens;
             lineTokens = readInstitutionalWeightingProperty("TWOINAROW", 2);
-            institutionParametrization.setTwoInARowPenalty(Integer.parseInt(lineTokens[1]));
+            constraintConfiguration.setTwoInARowPenalty(Integer.parseInt(lineTokens[1]));
             lineTokens = readInstitutionalWeightingProperty("TWOINADAY", 2);
-            institutionParametrization.setTwoInADayPenalty(Integer.parseInt(lineTokens[1]));
+            constraintConfiguration.setTwoInADayPenalty(Integer.parseInt(lineTokens[1]));
             lineTokens = readInstitutionalWeightingProperty("PERIODSPREAD", 2);
-            institutionParametrization.setPeriodSpreadLength(Integer.parseInt(lineTokens[1]));
-            institutionParametrization.setPeriodSpreadPenalty(1); // constant
+            constraintConfiguration.setPeriodSpreadLength(Integer.parseInt(lineTokens[1]));
+            constraintConfiguration.setPeriodSpreadPenalty(1); // constant
             lineTokens = readInstitutionalWeightingProperty("NONMIXEDDURATIONS", 2);
-            institutionParametrization.setMixedDurationPenalty(Integer.parseInt(lineTokens[1]));
+            constraintConfiguration.setMixedDurationPenalty(Integer.parseInt(lineTokens[1]));
             lineTokens = readInstitutionalWeightingProperty("FRONTLOAD", 4);
-            institutionParametrization.setFrontLoadLargeTopicSize(Integer.parseInt(lineTokens[1]));
-            institutionParametrization.setFrontLoadLastPeriodSize(Integer.parseInt(lineTokens[2]));
-            institutionParametrization.setFrontLoadPenalty(Integer.parseInt(lineTokens[3]));
-            examination.setInstitutionParametrization(institutionParametrization);
+            constraintConfiguration.setFrontLoadLargeTopicSize(Integer.parseInt(lineTokens[1]));
+            constraintConfiguration.setFrontLoadLastPeriodSize(Integer.parseInt(lineTokens[2]));
+            constraintConfiguration.setFrontLoadPenalty(Integer.parseInt(lineTokens[3]));
+            examination.setConstraintConfiguration(constraintConfiguration);
         }
 
         private String[] readInstitutionalWeightingProperty(String property,
@@ -424,16 +423,8 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
 
         private void tagFrontLoadLargeTopics() {
             List<Topic> sortedTopicList = new ArrayList<>(examination.getTopicList());
-            Collections.sort(sortedTopicList, new Comparator<Topic>() {
-                @Override
-                public int compare(Topic a, Topic b) {
-                    return new CompareToBuilder()
-                            .append(a.getStudentSize(), b.getStudentSize()) // Ascending
-                            .append(b.getId(), a.getId()) // Descending (according to spec)
-                            .toComparison();
-                }
-            });
-            int frontLoadLargeTopicSize = examination.getInstitutionParametrization().getFrontLoadLargeTopicSize();
+            Collections.sort(sortedTopicList, COMPARATOR);
+            int frontLoadLargeTopicSize = examination.getConstraintConfiguration().getFrontLoadLargeTopicSize();
             if (frontLoadLargeTopicSize == 0) {
                 return;
             }
@@ -451,14 +442,14 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
 
         private void tagFrontLoadLastPeriods() {
             List<Period> periodList = examination.getPeriodList();
-            int frontLoadLastPeriodSize = examination.getInstitutionParametrization().getFrontLoadLastPeriodSize();
+            int frontLoadLastPeriodSize = examination.getConstraintConfiguration().getFrontLoadLastPeriodSize();
             if (frontLoadLastPeriodSize == 0) {
                 return;
             }
             int minimumPeriodId = periodList.size() - frontLoadLastPeriodSize;
             if (minimumPeriodId < 0) {
                 logger.warn("The frontLoadLastPeriodSize (" + frontLoadLastPeriodSize
-                        + ") is bigger than periodListSize ("  + periodList.size()
+                        + ") is bigger than periodListSize (" + periodList.size()
                         + "). Tagging all periods as frontLoadLast...");
                 minimumPeriodId = 0;
             }
@@ -502,7 +493,5 @@ public class ExaminationImporter extends AbstractTxtSolutionImporter<Examination
             }
             examination.setExamList(examList);
         }
-
     }
-
 }

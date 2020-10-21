@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,21 @@
 
 package org.optaplanner.examples.coachshuttlegathering.app;
 
-import java.io.File;
-import java.util.Collection;
-
-import org.junit.runners.Parameterized;
-import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.core.api.score.calculator.EasyScoreCalculator;
 import org.optaplanner.examples.coachshuttlegathering.domain.CoachShuttleGatheringSolution;
 import org.optaplanner.examples.coachshuttlegathering.solver.CoachShuttleGatheringEasyScoreCalculator;
+import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.app.UnsolvedDirSolveAllTurtleTest;
 
 public class CoachShuttleGatheringSolveAllTurtleTest extends UnsolvedDirSolveAllTurtleTest<CoachShuttleGatheringSolution> {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDirFilesAsParameters(new CoachShuttleGatheringApp());
-    }
-
-    public CoachShuttleGatheringSolveAllTurtleTest(File unsolvedDataFile) {
-        super(new CoachShuttleGatheringApp(), unsolvedDataFile);
+    @Override
+    protected CommonApp<CoachShuttleGatheringSolution> createCommonApp() {
+        return new CoachShuttleGatheringApp();
     }
 
     @Override
     protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
         return CoachShuttleGatheringEasyScoreCalculator.class;
     }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.pas.domain.Bed;
 import org.optaplanner.examples.pas.domain.BedDesignation;
 import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
@@ -57,36 +55,37 @@ public class BedDesignationSwapMove extends AbstractMove<PatientAdmissionSchedul
     }
 
     @Override
+    public BedDesignationSwapMove rebase(ScoreDirector<PatientAdmissionSchedule> destinationScoreDirector) {
+        return new BedDesignationSwapMove(destinationScoreDirector.lookUpWorkingObject(leftBedDesignation),
+                destinationScoreDirector.lookUpWorkingObject(rightBedDesignation));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
-        return Arrays.<BedDesignation>asList(leftBedDesignation, rightBedDesignation);
+        return Arrays.asList(leftBedDesignation, rightBedDesignation);
     }
 
     @Override
     public Collection<? extends Object> getPlanningValues() {
-        return Arrays.<Bed>asList(leftBedDesignation.getBed(), rightBedDesignation.getBed());
+        return Arrays.asList(leftBedDesignation.getBed(), rightBedDesignation.getBed());
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof BedDesignationSwapMove) {
-            BedDesignationSwapMove other = (BedDesignationSwapMove) o;
-            return new EqualsBuilder()
-                    .append(leftBedDesignation, other.leftBedDesignation)
-                    .append(rightBedDesignation, other.rightBedDesignation)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final BedDesignationSwapMove other = (BedDesignationSwapMove) o;
+        return Objects.equals(leftBedDesignation, other.leftBedDesignation) &&
+                Objects.equals(rightBedDesignation, other.rightBedDesignation);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(leftBedDesignation)
-                .append(rightBedDesignation)
-                .toHashCode();
+        return Objects.hash(leftBedDesignation, rightBedDesignation);
     }
 
     @Override

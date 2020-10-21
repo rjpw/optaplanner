@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,29 +20,29 @@ import java.util.Iterator;
 
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 
-public class EntityIndependentInitializedValueSelector extends InitializedValueSelector
-        implements EntityIndependentValueSelector {
+public class EntityIndependentInitializedValueSelector<Solution_> extends InitializedValueSelector<Solution_>
+        implements EntityIndependentValueSelector<Solution_> {
 
-    public EntityIndependentInitializedValueSelector(EntityIndependentValueSelector childValueSelector) {
+    public EntityIndependentInitializedValueSelector(EntityIndependentValueSelector<Solution_> childValueSelector) {
         super(childValueSelector);
     }
 
     @Override
     public long getSize() {
-        return ((EntityIndependentValueSelector) childValueSelector).getSize();
+        return ((EntityIndependentValueSelector<Solution_>) childValueSelector).getSize();
     }
 
     @Override
     public Iterator<Object> iterator() {
-        return new JustInTimeInitializedValueIterator(null,
-                ((EntityIndependentValueSelector) childValueSelector).iterator(), determineBailOutSize());
+        return new JustInTimeInitializedValueIterator(
+                ((EntityIndependentValueSelector<Solution_>) childValueSelector).iterator(), determineBailOutSize());
     }
 
     protected long determineBailOutSize() {
         if (!bailOutEnabled) {
             return -1L;
         }
-        return ((EntityIndependentValueSelector) childValueSelector).getSize() * 10L;
+        return ((EntityIndependentValueSelector<Solution_>) childValueSelector).getSize() * 10L;
     }
 
 }

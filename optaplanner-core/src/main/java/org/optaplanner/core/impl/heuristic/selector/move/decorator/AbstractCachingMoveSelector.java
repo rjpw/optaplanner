@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,16 +25,17 @@ import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecyc
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector implements SelectionCacheLifecycleListener {
+public abstract class AbstractCachingMoveSelector<Solution_> extends AbstractMoveSelector<Solution_>
+        implements SelectionCacheLifecycleListener<Solution_> {
 
-    protected final MoveSelector childMoveSelector;
+    protected final MoveSelector<Solution_> childMoveSelector;
     protected final SelectionCacheType cacheType;
 
-    protected List<Move> cachedMoveList = null;
+    protected List<Move<Solution_>> cachedMoveList = null;
 
-    public AbstractCachingMoveSelector(MoveSelector childMoveSelector, SelectionCacheType cacheType) {
+    public AbstractCachingMoveSelector(MoveSelector<Solution_> childMoveSelector, SelectionCacheType cacheType) {
         this.childMoveSelector = childMoveSelector;
         this.cacheType = cacheType;
         if (childMoveSelector.isNeverEnding()) {
@@ -47,10 +48,10 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge<>(cacheType, this));
     }
 
-    public MoveSelector getChildMoveSelector() {
+    public MoveSelector<Solution_> getChildMoveSelector() {
         return childMoveSelector;
     }
 
@@ -64,7 +65,7 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
     // ************************************************************************
 
     @Override
-    public void constructCache(DefaultSolverScope solverScope) {
+    public void constructCache(SolverScope<Solution_> solverScope) {
         long childSize = childMoveSelector.getSize();
         if (childSize > (long) Integer.MAX_VALUE) {
             throw new IllegalStateException("The selector (" + this
@@ -79,7 +80,7 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
     }
 
     @Override
-    public void disposeCache(DefaultSolverScope solverScope) {
+    public void disposeCache(SolverScope<Solution_> solverScope) {
         cachedMoveList = null;
     }
 

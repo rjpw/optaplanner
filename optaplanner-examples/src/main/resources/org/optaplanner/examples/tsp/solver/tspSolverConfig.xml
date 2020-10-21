@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<solver>
-  <!--<environmentMode>FULL_ASSERT</environmentMode>-->
+<solver xmlns="https://www.optaplanner.org/xsd/solver" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://www.optaplanner.org/xsd/solver https://www.optaplanner.org/xsd/solver/solver.xsd">
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
+
   <solutionClass>org.optaplanner.examples.tsp.domain.TspSolution</solutionClass>
   <entityClass>org.optaplanner.examples.tsp.domain.Visit</entityClass>
 
   <scoreDirectorFactory>
     <!--<easyScoreCalculatorClass>org.optaplanner.examples.tsp.solver.score.TspEasyScoreCalculator</easyScoreCalculatorClass>-->
+    <!--<constraintProviderClass>org.optaplanner.examples.tsp.optional.score.TspConstraintProvider</constraintProviderClass>-->
     <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.tsp.solver.score.TspIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
-    <scoreDrl>org/optaplanner/examples/tsp/solver/tspScoreRules.drl</scoreDrl>
+    <scoreDrl>org/optaplanner/examples/tsp/solver/tspConstraints.drl</scoreDrl>
     <!--<assertionScoreDirectorFactory>-->
       <!--<easyScoreCalculatorClass>org.optaplanner.examples.tsp.solver.score.TspEasyScoreCalculator</easyScoreCalculatorClass>-->
     <!--</assertionScoreDirectorFactory>-->
@@ -23,7 +27,7 @@
   <localSearch>
     <unionMoveSelector>
       <changeMoveSelector>
-        <cacheType>PHASE</cacheType>
+        <cacheType>STEP</cacheType>
         <selectionOrder>SHUFFLED</selectionOrder>
       </changeMoveSelector>
       <!--<swapMoveSelector>-->

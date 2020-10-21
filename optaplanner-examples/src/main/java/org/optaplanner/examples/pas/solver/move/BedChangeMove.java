@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.examples.pas.domain.Bed;
 import org.optaplanner.examples.pas.domain.BedDesignation;
 import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
@@ -54,6 +52,12 @@ public class BedChangeMove extends AbstractMove<PatientAdmissionSchedule> {
     }
 
     @Override
+    public BedChangeMove rebase(ScoreDirector<PatientAdmissionSchedule> destinationScoreDirector) {
+        return new BedChangeMove(destinationScoreDirector.lookUpWorkingObject(bedDesignation),
+                destinationScoreDirector.lookUpWorkingObject(toBed));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Collections.singletonList(bedDesignation);
     }
@@ -67,23 +71,18 @@ public class BedChangeMove extends AbstractMove<PatientAdmissionSchedule> {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof BedChangeMove) {
-            BedChangeMove other = (BedChangeMove) o;
-            return new EqualsBuilder()
-                    .append(bedDesignation, other.bedDesignation)
-                    .append(toBed, other.toBed)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final BedChangeMove other = (BedChangeMove) o;
+        return Objects.equals(bedDesignation, other.bedDesignation) &&
+                Objects.equals(toBed, other.toBed);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(bedDesignation)
-                .append(toBed)
-                .toHashCode();
+        return Objects.hash(bedDesignation, toBed);
     }
 
     @Override

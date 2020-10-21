@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,12 @@ public class Timeslot extends AbstractPersistable {
 
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
-    private String talkType;
 
+    private Set<TalkType> talkTypeSet;
     private Set<String> tagSet;
+
+    // Cached
+    private Integer durationInMinutes;
 
     public Timeslot() {
     }
@@ -42,16 +45,25 @@ public class Timeslot extends AbstractPersistable {
         return startDateTime.toLocalDate();
     }
 
-    public long getDurationInMinutes() {
-        return Duration.between(startDateTime, endDateTime).toMinutes();
+    public Integer getDurationInMinutes() {
+        return durationInMinutes;
     }
 
-    public boolean overlaps(Timeslot other) {
+    public boolean overlapsTime(Timeslot other) {
         if (this == other) {
             return true;
         }
         return startDateTime.compareTo(other.endDateTime) < 0
                 && other.startDateTime.compareTo(endDateTime) < 0;
+    }
+
+    public int getOverlapInMinutes(Timeslot other) {
+        if (this == other) {
+            return durationInMinutes;
+        }
+        LocalDateTime startMaximum = (startDateTime.compareTo(other.startDateTime) < 0) ? other.startDateTime : startDateTime;
+        LocalDateTime endMinimum = (endDateTime.compareTo(other.endDateTime) < 0) ? endDateTime : other.endDateTime;
+        return (int) Duration.between(startMaximum, endMinimum).toMinutes();
     }
 
     public boolean startsAfter(Timeslot other) {
@@ -64,6 +76,22 @@ public class Timeslot extends AbstractPersistable {
 
     public boolean hasTag(String tag) {
         return tagSet.contains(tag);
+    }
+
+    public boolean isOnSameDayAs(Timeslot other) {
+        return startDateTime.toLocalDate().equals(other.getStartDateTime().toLocalDate());
+    }
+
+    public boolean pauseExists(Timeslot other, int pauseInMinutes) {
+        if (this.overlapsTime(other)) {
+            return false;
+        }
+        if (!this.isOnSameDayAs(other)) {
+            return true;
+        }
+        Duration pause = startsAfter(other) ? Duration.between(other.getEndDateTime(), getStartDateTime())
+                : Duration.between(getEndDateTime(), other.getStartDateTime());
+        return pause.toMinutes() >= pauseInMinutes;
     }
 
     @Override
@@ -81,6 +109,8 @@ public class Timeslot extends AbstractPersistable {
 
     public void setStartDateTime(LocalDateTime startDateTime) {
         this.startDateTime = startDateTime;
+        durationInMinutes = (startDateTime == null || endDateTime == null) ? null
+                : (int) Duration.between(startDateTime, endDateTime).toMinutes();
     }
 
     public LocalDateTime getEndDateTime() {
@@ -89,14 +119,16 @@ public class Timeslot extends AbstractPersistable {
 
     public void setEndDateTime(LocalDateTime endDateTime) {
         this.endDateTime = endDateTime;
+        durationInMinutes = (startDateTime == null || endDateTime == null) ? null
+                : (int) Duration.between(startDateTime, endDateTime).toMinutes();
     }
 
-    public String getTalkType() {
-        return talkType;
+    public Set<TalkType> getTalkTypeSet() {
+        return talkTypeSet;
     }
 
-    public void setTalkType(String talkType) {
-        this.talkType = talkType;
+    public void setTalkTypeSet(Set<TalkType> talkTypeSet) {
+        this.talkTypeSet = talkTypeSet;
     }
 
     public Set<String> getTagSet() {
@@ -111,18 +143,27 @@ public class Timeslot extends AbstractPersistable {
     // With methods
     // ************************************************************************
 
-    public Timeslot withTalkType(String talkType) {
-        this.talkType = talkType;
-        return this;
-    }
-
     public Timeslot withStartDateTime(LocalDateTime startDateTime) {
         this.startDateTime = startDateTime;
+        durationInMinutes = (startDateTime == null || endDateTime == null) ? null
+                : (int) Duration.between(startDateTime, endDateTime).toMinutes();
         return this;
     }
 
     public Timeslot withEndDateTime(LocalDateTime endDateTime) {
         this.endDateTime = endDateTime;
+        durationInMinutes = (startDateTime == null || endDateTime == null) ? null
+                : (int) Duration.between(startDateTime, endDateTime).toMinutes();
+        return this;
+    }
+
+    public Timeslot withTalkTypeSet(Set<TalkType> talkTypeSet) {
+        this.talkTypeSet = talkTypeSet;
+        return this;
+    }
+
+    public Timeslot withTagSet(Set<String> tagSet) {
+        this.tagSet = tagSet;
         return this;
     }
 

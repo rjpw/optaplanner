@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,35 +19,49 @@ package org.optaplanner.core.impl.heuristic.selector.move.generic.chained;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
 import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChain;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * This {@link Move} is not cacheable.
+ *
  * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
 public class SubChainReversingSwapMove<Solution_> extends AbstractMove<Solution_> {
 
     private final GenuineVariableDescriptor<Solution_> variableDescriptor;
-    protected final SingletonInverseVariableSupply inverseVariableSupply;
 
-    private final SubChain leftSubChain;
-    private final SubChain rightSubChain;
+    protected final SubChain leftSubChain;
+    protected final Object leftTrailingLastEntity;
+    protected final SubChain rightSubChain;
+    protected final Object rightTrailingLastEntity;
 
-    public SubChainReversingSwapMove(GenuineVariableDescriptor<Solution_> variableDescriptor, SingletonInverseVariableSupply inverseVariableSupply,
+    public SubChainReversingSwapMove(GenuineVariableDescriptor<Solution_> variableDescriptor,
+            SingletonInverseVariableSupply inverseVariableSupply,
             SubChain leftSubChain, SubChain rightSubChain) {
         this.variableDescriptor = variableDescriptor;
-        this.inverseVariableSupply = inverseVariableSupply;
+        this.leftSubChain = leftSubChain;
+        leftTrailingLastEntity = inverseVariableSupply.getInverseSingleton(leftSubChain.getLastEntity());
+        this.rightSubChain = rightSubChain;
+        rightTrailingLastEntity = inverseVariableSupply.getInverseSingleton(rightSubChain.getLastEntity());
+    }
+
+    public SubChainReversingSwapMove(GenuineVariableDescriptor<Solution_> variableDescriptor,
+            SubChain leftSubChain, Object leftTrailingLastEntity,
+            SubChain rightSubChain, Object rightTrailingLastEntity) {
+        this.variableDescriptor = variableDescriptor;
         this.leftSubChain = leftSubChain;
         this.rightSubChain = rightSubChain;
+        this.leftTrailingLastEntity = leftTrailingLastEntity;
+        this.rightTrailingLastEntity = rightTrailingLastEntity;
     }
 
     public SubChain getLeftSubChain() {
@@ -75,8 +89,9 @@ public class SubChainReversingSwapMove<Solution_> extends AbstractMove<Solution_
 
     @Override
     public SubChainReversingSwapMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
-        return new SubChainReversingSwapMove<>(variableDescriptor, inverseVariableSupply,
-                rightSubChain.reverse(), leftSubChain.reverse());
+        return new SubChainReversingSwapMove<>(variableDescriptor,
+                rightSubChain.reverse(), leftTrailingLastEntity,
+                leftSubChain.reverse(), rightTrailingLastEntity);
     }
 
     @Override
@@ -84,47 +99,56 @@ public class SubChainReversingSwapMove<Solution_> extends AbstractMove<Solution_
         Object leftFirstEntity = leftSubChain.getFirstEntity();
         Object leftFirstValue = variableDescriptor.getValue(leftFirstEntity);
         Object leftLastEntity = leftSubChain.getLastEntity();
-        Object leftTrailingLastEntity = inverseVariableSupply.getInverseSingleton(leftLastEntity);
         Object rightFirstEntity = rightSubChain.getFirstEntity();
         Object rightFirstValue = variableDescriptor.getValue(rightFirstEntity);
         Object rightLastEntity = rightSubChain.getLastEntity();
-        Object rightTrailingLastEntity = inverseVariableSupply.getInverseSingleton(rightLastEntity);
         Object leftLastEntityValue = variableDescriptor.getValue(leftLastEntity);
         Object rightLastEntityValue = variableDescriptor.getValue(rightLastEntity);
         // Change the entities
+        InnerScoreDirector<Solution_, ?> innerScoreDirector = (InnerScoreDirector<Solution_, ?>) scoreDirector;
         if (leftLastEntity != rightFirstValue) {
-            scoreDirector.changeVariableFacade(variableDescriptor, leftLastEntity, rightFirstValue);
+            innerScoreDirector.changeVariableFacade(variableDescriptor, leftLastEntity, rightFirstValue);
         }
         if (rightLastEntity != leftFirstValue) {
-            scoreDirector.changeVariableFacade(variableDescriptor, rightLastEntity, leftFirstValue);
+            innerScoreDirector.changeVariableFacade(variableDescriptor, rightLastEntity, leftFirstValue);
         }
         // Reverse the chains
-        reverseChain(scoreDirector, leftLastEntity, leftLastEntityValue, leftFirstEntity);
-        reverseChain(scoreDirector, rightLastEntity, rightLastEntityValue, rightFirstEntity);
+        reverseChain(innerScoreDirector, leftLastEntity, leftLastEntityValue, leftFirstEntity);
+        reverseChain(innerScoreDirector, rightLastEntity, rightLastEntityValue, rightFirstEntity);
         // Reroute the new chains
         if (leftTrailingLastEntity != null) {
             if (leftTrailingLastEntity != rightFirstEntity) {
-                scoreDirector.changeVariableFacade(variableDescriptor, leftTrailingLastEntity, rightFirstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, leftTrailingLastEntity, rightFirstEntity);
             } else {
-                scoreDirector.changeVariableFacade(variableDescriptor, leftLastEntity, rightFirstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, leftLastEntity, rightFirstEntity);
             }
         }
         if (rightTrailingLastEntity != null) {
             if (rightTrailingLastEntity != leftFirstEntity) {
-                scoreDirector.changeVariableFacade(variableDescriptor, rightTrailingLastEntity, leftFirstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, rightTrailingLastEntity, leftFirstEntity);
             } else {
-                scoreDirector.changeVariableFacade(variableDescriptor, rightLastEntity, leftFirstEntity);
+                innerScoreDirector.changeVariableFacade(variableDescriptor, rightLastEntity, leftFirstEntity);
             }
         }
     }
 
-    private void reverseChain(ScoreDirector<Solution_> scoreDirector, Object entity, Object previous, Object toEntity) {
+    private void reverseChain(InnerScoreDirector<Solution_, ?> scoreDirector, Object entity, Object previous,
+            Object toEntity) {
         while (entity != toEntity) {
             Object value = variableDescriptor.getValue(previous);
             scoreDirector.changeVariableFacade(variableDescriptor, previous, entity);
             entity = previous;
             previous = value;
         }
+    }
+
+    @Override
+    public SubChainReversingSwapMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new SubChainReversingSwapMove<>(variableDescriptor,
+                leftSubChain.rebase(destinationScoreDirector),
+                destinationScoreDirector.lookUpWorkingObject(leftTrailingLastEntity),
+                rightSubChain.rebase(destinationScoreDirector),
+                destinationScoreDirector.lookUpWorkingObject(rightTrailingLastEntity));
     }
 
     // ************************************************************************
@@ -157,25 +181,19 @@ public class SubChainReversingSwapMove<Solution_> extends AbstractMove<Solution_
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof SubChainReversingSwapMove) {
-            SubChainReversingSwapMove<?> other = (SubChainReversingSwapMove) o;
-            return new EqualsBuilder()
-                    .append(variableDescriptor, other.variableDescriptor)
-                    .append(leftSubChain, other.leftSubChain)
-                    .append(rightSubChain, other.rightSubChain)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final SubChainReversingSwapMove<?> other = (SubChainReversingSwapMove<?>) o;
+        return Objects.equals(variableDescriptor, other.variableDescriptor) &&
+                Objects.equals(leftSubChain, other.leftSubChain) &&
+                Objects.equals(rightSubChain, other.rightSubChain);
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(variableDescriptor)
-                .append(leftSubChain)
-                .append(rightSubChain)
-                .toHashCode();
+        return Objects.hash(variableDescriptor, leftSubChain, rightSubChain);
     }
 
     @Override

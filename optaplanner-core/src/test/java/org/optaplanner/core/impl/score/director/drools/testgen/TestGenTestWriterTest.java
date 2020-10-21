@@ -15,6 +15,8 @@
  */
 package org.optaplanner.core.impl.score.director.drools.testgen;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -27,11 +29,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
 import org.optaplanner.core.impl.score.buildin.simple.SimpleScoreDefinition;
@@ -40,14 +44,13 @@ import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
 import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
-import static org.junit.Assert.*;
-
 public class TestGenTestWriterTest {
 
     private static final String DRL_FILE_PLACEHOLDER = "SCORE_DRL_ABSOLUTE_PATH";
     private static final String DRL_FILE_PATH = "/x/y.drl";
 
-    @Test(timeout = 600000)
+    @Test
+    @Timeout(600)
     public void fullJournalOutput() throws IOException, URISyntaxException {
         TestGenKieSessionJournal journal = new TestGenKieSessionJournal();
         TestdataEntity entity = new TestdataEntity("E");
@@ -69,7 +72,7 @@ public class TestGenTestWriterTest {
         writer.setScoreDrlList(Arrays.asList("x", "y"));
         writer.setConstraintMatchEnabled(true);
         writer.setCorruptedScoreException(new TestGenCorruptedScoreException(
-                SimpleScore.valueOf(1), SimpleScore.valueOf(0)));
+                SimpleScore.of(1), SimpleScore.of(0)));
 
         StringWriter sw = new StringWriter();
         writer.print(journal, sw);
@@ -78,18 +81,39 @@ public class TestGenTestWriterTest {
     }
 
     @Test
-    public void emptyJournalOutput() throws IOException, URISyntaxException {
+    public void emptyJournalOutput() {
         TestGenKieSessionJournal journal = new TestGenKieSessionJournal();
         TestGenTestWriter writer = new TestGenTestWriter();
 
         StringWriter sw = new StringWriter();
         writer.print(journal, sw);
-        assertFalse(sw.toString().contains("import java.io.File;"));
+        assertThat(sw.toString()).doesNotContain("import java.io.File;");
 
         // shouldn't throw exception even if lists are null
         writer.setScoreDrlFileList(null);
         writer.setScoreDrlList(null);
         writer.print(journal, new StringWriter());
+    }
+
+    @Test
+    public void dateFactField() {
+        TestGenKieSessionJournal journal = new TestGenKieSessionJournal();
+        TestClassWithDateField entity = new TestClassWithDateField();
+        Date now = new Date();
+        entity.setDate(now);
+        journal.addFacts(Arrays.asList(entity));
+
+        TestGenTestWriter writer = new TestGenTestWriter();
+        writer.setClassName("TestGenWriterOutput");
+        writer.setScoreDefinition(new SimpleScoreDefinition());
+
+        StringWriter sw = new StringWriter();
+        writer.print(journal, sw);
+        String generatedCode = sw.toString();
+
+        assertThat(generatedCode).contains(
+                "import java.util.Date;",
+                "setDate(new Date(" + now.getTime() + "));");
     }
 
     private static void checkOutput(Path expected, String actual) throws IOException {
@@ -99,16 +123,28 @@ public class TestGenTestWriterTest {
         for (int i = 0; i < Math.min(expectedLines.size(), actualLines.size()); i++) {
             String expectedLine = StringUtils.replace(expectedLines.get(i),
                     DRL_FILE_PLACEHOLDER, new File(DRL_FILE_PATH).getAbsolutePath());
-            assertEquals("At line " + (i + 1), expectedLine, actualLines.get(i));
+            assertThat(actualLines.get(i)).isEqualTo(expectedLine).withFailMessage("At line " + (i + 1));
         }
 
         // then check line counts are the same
-        assertEquals(expectedLines.size(), actualLines.size());
+        assertThat(actualLines).hasSameSizeAs(expectedLines);
 
         // finally check the whole string
         String expectedString = StringUtils.replace(new String(Files.readAllBytes(expected), StandardCharsets.UTF_8),
                 DRL_FILE_PLACEHOLDER, new File(DRL_FILE_PATH).getAbsolutePath());
-        assertEquals(expectedString, actual);
+        assertThat(actual).isEqualTo(expectedString);
     }
 
+    static class TestClassWithDateField {
+
+        private Date date;
+
+        public Date getDate() {
+            return date;
+        }
+
+        public void setDate(Date date) {
+            this.date = date;
+        }
+    }
 }
